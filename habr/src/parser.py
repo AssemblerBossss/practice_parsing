@@ -10,7 +10,7 @@ logger = setup_logger("habr_logger")
 
 
 def get_author_posts(username, max_pages=2):
-    """Парсинг статей автора с Хабра с актуальными селекторами"""
+    """Парсинг статей автора с Хабра"""
     base_url = "https://habr.com"
     articles = []
 
@@ -42,7 +42,6 @@ def get_author_posts(username, max_pages=2):
 
             for post in posts:
                 try:
-                    # Новые селекторы
                     title_tag = post.find('strong') if  post.find('strong') else None
                     time_tag = post.find('time') or post.find('span', class_='tm-publication-date')
                     content = ""
