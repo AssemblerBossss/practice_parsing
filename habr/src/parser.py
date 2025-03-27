@@ -9,6 +9,20 @@ ua = UserAgent()
 logger = setup_logger("habr_logger")
 
 
+def get_artcile_text(article_url):
+    """Получает полный текст статьи по URL"""
+    try:
+        response = requests.get(article_url, headers={'User-Agent': ua.chrome}, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        article_body = soup.find('div', class_='tm-article-body')
+        return article_body.get_text(separator='\n', strip=True) if article_body else None
+    except Exception as e:
+        logger.error(f"Ошибка при получении текста статьи: {str(e)}")
+        return None
+
+
+
+
 def get_author_articles(username, max_pages=2):
     """Парсинг статей автора с Хабра"""
     base_url = "https://habr.com"
@@ -48,11 +62,14 @@ def get_author_articles(username, max_pages=2):
                 print(post)
                 title_tag = post.find('a', class_='tm-title__link')
                 if title_tag:
-                    articles.append({
+                    article_data = {
                         'title': title_tag.text.strip(),
                         'link': urljoin(base_url, title_tag['href']),
                         'date': post.find('time')['datetime']
-                    })
+                    }
+                    articles.append(article_data)
+                    #logger.debug(f"Найдена статья: {article_data['title']}")
+
 
             sleep(2)
 
