@@ -1,17 +1,6 @@
 import logging
 import os
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # Вывод в консоль
-        logging.FileHandler('habr_parser.log')  # Запись в файл
-    ]
-)
-
-logger = logging.getLogger("habr_logger")
-
 
 def setup_logger(logger_name: str, log_file: str = 'habr_parser.log') -> logging.Logger:
     """
