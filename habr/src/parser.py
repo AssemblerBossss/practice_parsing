@@ -7,7 +7,7 @@ from fake_useragent import UserAgent
 ua = UserAgent()
 
 
-def get_author_articles(username, max_pages=5):
+def get_author_articles(username, max_pages=2):
     base_url = "https://habr.com"
     articles = []
 
