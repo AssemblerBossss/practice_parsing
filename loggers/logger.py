@@ -1,5 +1,5 @@
 import logging
-from logging_config import DEFAULT_HABR_LOG_FILE, LOG_FORMAT, LOG_LEVEL, LOGS_DIR, LOG_DATE_FORMAT
+from .logging_config import DEFAULT_HABR_LOG_FILE, LOG_FORMAT, LOG_LEVEL, LOGS_DIR, LOG_DATE_FORMAT
 
 
 def setup_logger(logger_name: str,

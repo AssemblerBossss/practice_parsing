@@ -3,11 +3,14 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from time import sleep
 from fake_useragent import UserAgent
+from loggers import setup_logger
 
 ua = UserAgent()
+logger = setup_logger("habr_logger")
 
 
 def get_author_articles(username, max_pages=2):
+    """Парсинг статей автора с Хабра"""
     base_url = "https://habr.com"
     articles = []
 
@@ -24,7 +27,11 @@ def get_author_articles(username, max_pages=2):
 
         try:
             response = requests.get(url, headers=headers, timeout=10)
-            print(f"Страница {page}: статус {response.status_code}")
+            logger.info(f"Страница {page}: статус {response.status_code}")
+
+            if response.status_code == 404:
+                logger.warning(f"Страница {page} не найдена. У автора меньше статей, чем {max_pages} страниц.")
+                break
 
             if response.status_code != 200:
                 print(f"Ошибка: {response.status_code}")
@@ -34,28 +41,23 @@ def get_author_articles(username, max_pages=2):
             posts = soup.find_all('article', class_='tm-articles-list__item')
 
             if not posts:
-                print("Статьи не найдены, возможно, страница закончилась.")
+                logger.warning("Статьи не найдены, возможно, страница закончилась.")
                 break
 
             for post in posts:
+                print(post)
                 title_tag = post.find('a', class_='tm-title__link')
-                if not title_tag:
-                    continue
+                if title_tag:
+                    articles.append({
+                        'title': title_tag.text.strip(),
+                        'link': urljoin(base_url, title_tag['href']),
+                        'date': post.find('time')['datetime']
+                    })
 
-                title = title_tag.text.strip()
-                link = urljoin(base_url, title_tag['href'])
-                date = post.find('time')['datetime']
-
-                articles.append({
-                    'title': title,
-                    'link': link,
-                    'date': date
-                })
-
-            sleep(2)  # Задержка между запросами (чтобы не блокировали)
+            sleep(2)
 
         except Exception as e:
-            print(f"Ошибка при запросе: {e}")
+            logger.error(f"Ошибка при обработке страницы {page}: {str(e)}")
             break
 
     return articles

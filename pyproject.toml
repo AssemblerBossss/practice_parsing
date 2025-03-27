@@ -12,6 +12,9 @@ beautifulsoup4 = "^4.13.3"
 fake-useragent = "^2.1.0"
 
 
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.1.2"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

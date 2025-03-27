@@ -15,5 +15,3 @@ LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Уровни логирования
 LOG_LEVEL = "INFO"
-
-print(BASE_DIR)
