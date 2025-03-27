@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 habr/src/test.py
 logs/
+./.idea
 
 # C extensions
 *.so
