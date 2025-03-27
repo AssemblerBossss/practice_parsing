@@ -5,6 +5,7 @@ __pycache__/
 habr/src/test.py
 logs/
 .idea/
+dist/
 
 # C extensions
 *.so
