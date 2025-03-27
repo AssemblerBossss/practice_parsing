@@ -1,8 +1,9 @@
 import logging
 import os
+from logging_config import DEFAULT_HABR_LOG_FILE, LOG_FORMAT, LOG_LEVEL
 
 
-def setup_logger(logger_name: str, log_file: str = 'habr_parser.log') -> logging.Logger:
+def setup_logger(logger_name: str, log_file: str = DEFAULT_HABR_LOG_FILE) -> logging.Logger:
     """
     Настройка логгера с записью в файл
 
