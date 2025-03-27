@@ -9,7 +9,7 @@ ua = UserAgent()
 logger = setup_logger("habr_logger")
 
 
-def get_author_articles(username, max_pages=2):
+def get_author_posts(username, max_pages=2):
     """Парсинг статей автора с Хабра с актуальными селекторами"""
     base_url = "https://habr.com"
     articles = []
@@ -24,8 +24,6 @@ def get_author_articles(username, max_pages=2):
 
         try:
             response = requests.get(url, headers=headers, timeout=10)
-            #print(response.text)
-
             logger.info(f"Страница {page}: статус {response.status_code}")
 
             if response.status_code != 200:
@@ -34,11 +32,8 @@ def get_author_articles(username, max_pages=2):
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Актуальные селекторы для 2025 года
             posts = soup.find_all('article', class_='tm-articles-list__item_no-padding')
-            #posts = soup.find_all('article')
-            # Вариант 3: Поиск по атрибуту
-            #posts = soup.find_all('div', attrs={'data-test-id': 'article-snippet'})
+
             if not posts:
                 logger.warning(f"Не найдено статей на странице {page}")
                 #logger.debug(f"HTML страницы:\n{response.text[:500]}...")  # Логируем часть HTML
@@ -81,13 +76,10 @@ if __name__ == "__main__":
     author_username = "DevFM"
     logger.info(f"Начинаем парсинг статей автора {author_username}")
 
-    articles = get_author_articles(author_username)
+    articles = get_author_posts(author_username)
 
     if not articles:
         logger.warning("Не найдено ни одной статьи! Проверьте:")
-        logger.warning("1. Существует ли пользователь")
-        logger.warning("2. Актуальность селекторов в коде")
-        logger.warning("3. HTML структуру страницы через Инспектор")
     else:
         logger.info(f"\nНайдено статей: {len(articles)}")
         for idx, article in enumerate(articles, 1):
