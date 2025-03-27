@@ -1,45 +1,53 @@
 import logging
-import os
-from logging_config import DEFAULT_HABR_LOG_FILE, LOG_FORMAT, LOG_LEVEL
+from .logging_config import DEFAULT_HABR_LOG_FILE, LOG_FORMAT, LOG_LEVEL, LOGS_DIR, LOG_DATE_FORMAT
 
 
-def setup_logger(logger_name: str, log_file: str = DEFAULT_HABR_LOG_FILE) -> logging.Logger:
+def setup_logger(logger_name: str,
+                 log_level: str = LOG_LEVEL,
+                 log_file: str = DEFAULT_HABR_LOG_FILE,
+                 console_output: bool = True
+                 ) -> logging.Logger:
     """
-    Настройка логгера с записью в файл
+    Настраивает и возвращает логгер с файловым и консольным выводом.
 
-    :param logger_name: Имя логгера
-    :param log_file: Имя файла для логов
-    :return: Настроенный логгер
+    Args:
+        logger_name: Имя логгера (обычно __name__)
+        log_file: Имя файла лога (если None, используется DEFAULT_LOG_FILE)
+        log_level: Уровень логирования (если None, используется LOG_LEVEL из конфига)
+        console_output: Включить вывод в консоль
+
+    Returns:
+        Настроенный логгер
     """
 
-    # Создаем папку для логов, если ее нет
-    os.makedirs('logs', exist_ok=True)
-    log_path = os.path.join('logs', log_file)
+    # Создаем директорию для логов, если не существует
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Настройка формата
+    # Определяем конечный путь к файлу лога
+    log_path = LOGS_DIR / log_file
+
+    # Настройка formatter
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        fmt=LOG_FORMAT,
+        datefmt=LOG_DATE_FORMAT
     )
-
-    # Настройка обработчика для файла
-    file_handler = logging.FileHandler(
-        log_path,
-        encoding='utf-8'
-    )
-    file_handler.setFormatter(formatter)
-
-    # Настройка обработчика для файла
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
 
     # Создаем и настраиваем логгер
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
+
+    # Настройка обработчика для файла
+    file_handler = logging.FileHandler(
+        filename=log_path,
+        encoding='utf-8'
+    )
+    file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+
+    # Настройка обработчика для файла
+    if console_output:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
 
     return logger
-
-
-
-

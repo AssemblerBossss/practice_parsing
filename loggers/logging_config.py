@@ -11,9 +11,7 @@ DEFAULT_PIKABU_LOG_FILE = "pikabu.log"
 
 # Форматы
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Уровни логирования
 LOG_LEVEL = "INFO"
-
-print(BASE_DIR)
