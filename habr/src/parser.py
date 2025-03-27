@@ -25,6 +25,7 @@ def get_author_posts(username, max_pages=2):
         try:
             response = requests.get(url, headers=headers, timeout=10)
             logger.info(f"Страница {page}: статус {response.status_code}")
+            #logger.info(response.text)
 
             if response.status_code != 200:
                 logger.error(f"Ошибка HTTP: {response.status_code}")
@@ -44,6 +45,11 @@ def get_author_posts(username, max_pages=2):
                     # Новые селекторы
                     title_tag = post.find('strong') if  post.find('strong') else None
                     time_tag = post.find('time') or post.find('span', class_='tm-publication-date')
+                    content = ""
+
+                    #print("\nСпособ 2 (по абзацам):")
+                    for p in post.find_all('p'):
+                        content += p.get_text(strip=True)
 
                     if not title_tag or not time_tag:
                         #logger.warning(f"Не найдены теги в статье:\n{post.prettify()[:300]}...")
@@ -54,7 +60,8 @@ def get_author_posts(username, max_pages=2):
                     articles.append({
                         'title': title_tag.text.strip(),
                         #'link': article_url,
-                        'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip()
+                        'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
+                        'content': content
                     })
                     logger.info(f"Найдена статья: {title_tag.text.strip()}")
 
@@ -85,4 +92,5 @@ if __name__ == "__main__":
         for idx, article in enumerate(articles, 1):
             print(f"\n{idx}. {article['title']}")
             print(f"   Дата: {article['date']}")
+            print(f"   Содержание: {article['content']}")
             #print(f"   Ссылка: {article['link']}")
