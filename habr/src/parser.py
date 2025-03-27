@@ -4,12 +4,13 @@ from urllib.parse import urljoin
 from time import sleep
 from fake_useragent import UserAgent
 from loggers import setup_logger
+from storage.data_storage import DataStorage
 
 ua = UserAgent()
 logger = setup_logger("habr_logger")
 
 
-def get_author_posts(username, max_pages=2):
+def get_author_posts(username: str, max_pages: int = 2) -> list[dict[str, str]]:
     """Парсинг статей автора с Хабра"""
     base_url = "https://habr.com"
     articles = []
@@ -62,13 +63,15 @@ def get_author_posts(username, max_pages=2):
                         'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
                         'content': content
                     })
+
+
                     logger.info(f"Найдена статья: {title_tag.text.strip()}")
 
                 except Exception as e:
                     logger.error(f"Ошибка обработки статьи: {str(e)}")
                     logger.debug(f"Проблемная статья:\n{post.prettify()[:300]}...")
                     continue
-
+            DataStorage.save_as_json(articles, "habr.json")
             sleep(2)
 
         except Exception as e:
@@ -88,8 +91,8 @@ if __name__ == "__main__":
         logger.warning("Не найдено ни одной статьи! Проверьте:")
     else:
         logger.info(f"\nНайдено статей: {len(articles)}")
-        for idx, article in enumerate(articles, 1):
-            print(f"\n{idx}. {article['title']}")
-            print(f"   Дата: {article['date']}")
-            print(f"   Содержание: {article['content']}")
+        # for idx, article in enumerate(articles, 1):
+            # print(f"\n{idx}. {article['title']}")
+            # print(f"   Дата: {article['date']}")
+            # print(f"   Содержание: {article['content']}")
             #print(f"   Ссылка: {article['link']}")

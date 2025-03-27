@@ -11,15 +11,16 @@ DATA_DIR = BASE_DIR / "data"
 
 class DataStorage:
     @staticmethod
-    def save_as_json(data: dict, file_name: str) -> bool:
+    def save_as_json(posts, file_name: str) -> bool:
         DATA_DIR.mkdir(exist_ok=True, parents=True)
         file_path = DATA_DIR / file_name
 
         output_data = {
             'metadata': {
                 'generated_at' : datetime.now().isoformat(),
+                "posts_count": len(posts)
             },
-            'posts': data
+            'posts': posts
         }
 
         try:
@@ -30,3 +31,12 @@ class DataStorage:
         except Exception as e:
             logger.error(f"Failed to save posts: {str(e)}")
             return False
+    #
+    # def read_json(filename, subfolder="json"):
+    #     """Чтение данных из JSON файла"""
+    #     try:
+    #         with open(os.path.join(subfolder, filename), 'r', encoding='utf-8') as f:
+    #             return json.load(f)
+    #     except Exception as e:
+    #         logger.error(f"File read error: {str(e)}")
+    #         return None

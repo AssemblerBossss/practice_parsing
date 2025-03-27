@@ -6,6 +6,7 @@ habr/src/test.py
 logs/
 .idea/
 dist/
+storage/data/
 
 # C extensions
 *.so
