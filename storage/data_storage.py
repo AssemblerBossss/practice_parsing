@@ -1,13 +1,11 @@
 import json
-from datetime import datetime
-from pathlib import Path
+from typing import Optional, Dict, Any, Literal
 from loggers import setup_logger
-
+import datetime
+from storage.storage_config import (DATA_DIR, ALLOWED_FILES)
 
 logger = setup_logger("saving_logger")
 
-BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data"
 
 class DataStorage:
     @staticmethod
@@ -31,12 +29,28 @@ class DataStorage:
         except Exception as e:
             logger.error(f"Failed to save posts: {str(e)}")
             return False
-    #
-    # def read_json(filename, subfolder="json"):
-    #     """Чтение данных из JSON файла"""
-    #     try:
-    #         with open(os.path.join(subfolder, filename), 'r', encoding='utf-8') as f:
-    #             return json.load(f)
-    #     except Exception as e:
-    #         logger.error(f"File read error: {str(e)}")
-    #         return None
+
+    @staticmethod
+    def read_json(source: Literal['habr', 'pikabu', 'telegram']) -> dict[dict, list[dict[str, str]]]:
+        """Чтение данных из JSON файла"""
+
+        if source not in ALLOWED_FILES:
+            raise ValueError(f"Invalid source. Allowed: {list(ALLOWED_FILES.keys())}")
+
+        file_name = ALLOWED_FILES[source]
+        file_path = DATA_DIR / file_name
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            logger.info(f"Successfully read data from {file_path}")
+            return data
+        except FileNotFoundError:
+            logger.error(f"File not found: {file_path}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON format in {file_path}: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Error reading file {file_path}: {str(e)}")
+            return None
