@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 from fake_useragent import UserAgent
 from loggers import setup_logger
+from storage import DataStorage
 
 ua = UserAgent()
 logger = setup_logger("habr_logger")
