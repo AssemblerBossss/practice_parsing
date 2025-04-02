@@ -1,6 +1,5 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
 from time import sleep
 from fake_useragent import UserAgent
 from loggers import setup_logger
@@ -49,7 +48,7 @@ def get_author_posts(username: str, max_pages: int = 2) -> list[dict[str, str]]:
 
                     #print("\nСпособ 2 (по абзацам):")
                     for p in post.find_all('p'):
-                        content += p.get_text(strip=True)
+                        content += p.get_text(separator=" ")
 
                     if not title_tag or not time_tag:
                         #logger.warning(f"Не найдены теги в статье:\n{post.prettify()[:300]}...")
