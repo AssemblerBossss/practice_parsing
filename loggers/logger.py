@@ -1,9 +1,9 @@
 import logging
-from .logging_config import DEFAULT_HABR_LOG_FILE, LOG_FORMAT, LOG_LEVEL, LOGS_DIR, LOG_DATE_FORMAT
+from .logging_config import DEFAULT_HABR_LOG_FILE, LOG_FORMAT, LOG_LEVEL_INFO, LOGS_DIR, LOG_DATE_FORMAT
 
 
 def setup_logger(logger_name: str,
-                 log_level: str = LOG_LEVEL,
+                 log_level: str = LOG_LEVEL_INFO,
                  log_file: str = DEFAULT_HABR_LOG_FILE,
                  console_output: bool = True
                  ) -> logging.Logger:
@@ -34,7 +34,7 @@ def setup_logger(logger_name: str,
 
     # Создаем и настраиваем логгер
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(log_level)
 
     # Настройка обработчика для файла
     file_handler = logging.FileHandler(

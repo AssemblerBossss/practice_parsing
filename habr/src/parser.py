@@ -1,16 +1,16 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
 from time import sleep
 from fake_useragent import UserAgent
 from loggers import setup_logger
+from storage import DataStorage
 
 ua = UserAgent()
 logger = setup_logger("habr_logger")
 
 
-def get_author_posts(username, max_pages=2):
-    """Парсинг статей автора с Хабра с актуальными селекторами"""
+def get_author_posts(username: str, max_pages: int = 2) -> list[dict[str, str]]:
+    """Парсинг статей автора с Хабра"""
     base_url = "https://habr.com"
     articles = []
 
@@ -42,14 +42,13 @@ def get_author_posts(username, max_pages=2):
 
             for post in posts:
                 try:
-                    # Новые селекторы
                     title_tag = post.find('strong') if  post.find('strong') else None
                     time_tag = post.find('time') or post.find('span', class_='tm-publication-date')
                     content = ""
 
                     #print("\nСпособ 2 (по абзацам):")
                     for p in post.find_all('p'):
-                        content += p.get_text(strip=True)
+                        content += p.get_text(separator=" ")
 
                     if not title_tag or not time_tag:
                         #logger.warning(f"Не найдены теги в статье:\n{post.prettify()[:300]}...")
@@ -63,13 +62,15 @@ def get_author_posts(username, max_pages=2):
                         'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
                         'content': content
                     })
+
+
                     logger.info(f"Найдена статья: {title_tag.text.strip()}")
 
                 except Exception as e:
                     logger.error(f"Ошибка обработки статьи: {str(e)}")
                     logger.debug(f"Проблемная статья:\n{post.prettify()[:300]}...")
                     continue
-
+            DataStorage.save_as_json(articles, "habr.json")
             sleep(2)
 
         except Exception as e:
@@ -89,8 +90,8 @@ if __name__ == "__main__":
         logger.warning("Не найдено ни одной статьи! Проверьте:")
     else:
         logger.info(f"\nНайдено статей: {len(articles)}")
-        for idx, article in enumerate(articles, 1):
-            print(f"\n{idx}. {article['title']}")
-            print(f"   Дата: {article['date']}")
-            print(f"   Содержание: {article['content']}")
+        # for idx, article in enumerate(articles, 1):
+            # print(f"\n{idx}. {article['title']}")
+            # print(f"   Дата: {article['date']}")
+            # print(f"   Содержание: {article['content']}")
             #print(f"   Ссылка: {article['link']}")
