@@ -3,6 +3,7 @@ from datetime import datetime
 from logging import Logger
 from dotenv import load_dotenv
 from loggers import setup_logger
+from storage import DataStorage
 
 logger: Logger = setup_logger('telegram_logger')
 
@@ -60,7 +61,7 @@ class TelegramChannelParser:
                 logger.warning("Список сообщений пуст")
                 break
 
-            # self._process_messages(history.messages)
+            self._process_messages(history.messages)
 
             total_count_of_messages += len(history.messages)
             if total_limit != 0 and total_count_of_messages >= total_limit: # достигли/превысили лимит
@@ -81,3 +82,5 @@ class TelegramChannelParser:
             }
             self.posts.append(post_data)
 
+    def save_to_json(self):
+        DataStorage.save_as_json(self.posts, 'telegram')
