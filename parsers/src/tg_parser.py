@@ -1,16 +1,15 @@
-import asyncio
 import os
-from datetime import datetime
 from logging import Logger
 from dotenv import load_dotenv
 from loggers import setup_logger
 from storage import DataStorage
 
+from telethon.sync import TelegramClient                      # Основной клиент для работы(синхронный)
+from telethon.tl.functions.messages import GetHistoryRequest  # Получение истории сообщений из чата
+from telethon.tl.types import Channel                         # Тип, представляющий тг-канал
+
 logger: Logger = setup_logger('telegram_logger')
 
-from telethon.sync import TelegramClient                     # Основной клиент для работы(синхронный)
-from telethon.tl.functions.messages import GetHistoryRequest # Получение истории сообщений из чата
-from telethon.tl.types import Channel                        # Тип, представляющий тг-канал
 
 class TelegramChannelParser:
     def __init__(self, channel_name: str):
@@ -19,8 +18,8 @@ class TelegramChannelParser:
         Args: channel_username (str): Название канала
         """
 
-        self._load_env_vars()        # Загрузка переменных окружения
-        self._validate_credentials() # Проверка обязательных переменных
+        self._load_env_vars()         # Загрузка переменных окружения
+        self._validate_credentials()  # Проверка обязательных переменных
 
         self.channel_name = channel_name
 
@@ -38,14 +37,12 @@ class TelegramChannelParser:
 
         self.api_id = os.getenv('TELEGRAM_API_ID')
         self.api_hash = os.getenv('TELEGRAM_API_HASH')
-        self.phone = os.getenv('TELEGRAM_PHONE')
 
     def _validate_credentials(self):
         """Проверка наличия обязательных переменных"""
         required_vars = {
             'TELEGRAM_API_ID': self.api_id,
             'TELEGRAM_API_HASH': self.api_hash,
-            'TELEGRAM_PHONE': self.phone
         }
 
         missing_vars = [name for name, value in required_vars.items() if not value]
@@ -56,7 +53,6 @@ class TelegramChannelParser:
                 "Пожалуйста, создайте .env файл со следующими переменными:\n"
                 "TELEGRAM_API_ID=ваш_api_id\n"
                 "TELEGRAM_API_HASH=ваш_api_hash\n"
-                "TELEGRAM_PHONE=ваш_номер_телефона"
             )
 
     async def connect_to_channel(self):
@@ -99,10 +95,10 @@ class TelegramChannelParser:
             self._process_messages(history.messages)
 
             total_count_of_messages += len(history.messages)
-            if total_limit != 0 and total_count_of_messages >= total_limit: # достигли/превысили лимит
+            if total_limit != 0 and total_count_of_messages >= total_limit:  # достигли/превысили лимит
                 break
 
-            offset_id += history.history[-1].id # ID для следующего запроса
+            offset_id += history.history[-1].id  # ID для следующего запроса
 
     def _process_messages(self, messages):
         """Обработка и сохранение сообщений"""
