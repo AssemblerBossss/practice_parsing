@@ -66,7 +66,7 @@ def get_author_posts(username: str, max_pages: int = 2) -> list[dict[str, str]]:
                     logger.error(f"Ошибка обработки статьи: {str(e)}")
                     logger.debug(f"Проблемная статья:\n{post.prettify()[:300]}...")
                     continue
-            DataStorage.save_as_json(articles, "habr.json")
+            DataStorage.save_as_json(articles, "parsers.json")
             sleep(2)
 
         except Exception as e:

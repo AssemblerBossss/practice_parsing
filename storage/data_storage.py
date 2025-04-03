@@ -31,7 +31,7 @@ class DataStorage:
             return False
 
     @staticmethod
-    def read_json(source: Literal['habr', 'pikabu', 'telegram']) -> dict[dict, list[dict[str, str]]]:
+    def read_json(source: Literal['parsers', 'pikabu', 'telegram']) -> dict[dict, list[dict[str, str]]]:
         """Чтение данных из JSON файла"""
 
         if source not in ALLOWED_FILES:
