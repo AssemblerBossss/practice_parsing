@@ -69,5 +69,16 @@ class TelegramChannelParser:
             offset_id += history.offset_id[-1].id # ID для следующего запроса
 
 
-
+def _process_messages(self, messages):
+    """Обработка и сохранение сообщений"""
+    for message in messages:
+       post_data = {
+           'id': message.id,
+            'date': message.date.isoformat(),
+            'text': message.message,
+            'views': getattr(message, 'views', None),
+            'media': bool(message.media),
+            'is_forward': bool(message.fwd_from),
+        }
+        self.posts.append(post_data)
 
