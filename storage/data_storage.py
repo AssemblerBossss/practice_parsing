@@ -29,7 +29,7 @@ class DataStorage:
         try:
             with open(file_path , 'w', encoding='utf-8') as f:
                 json.dump(output_data, f, ensure_ascii=False, indent=4)
-            logger.info(f"Saved {len(output_data)} posts to {file_path}")
+            logger.info(f"Saved {len(posts)} posts to {file_path}")
             return True
         except Exception as e:
             logger.error(f"Failed to save posts: {str(e)}")

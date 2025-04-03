@@ -1,3 +1,4 @@
+import asyncio
 import os
 from datetime import datetime
 from logging import Logger
@@ -29,7 +30,28 @@ class TelegramChannelParser:
                                      api_hash=self.api_hash
                                      )
         self.channel = None    # Будет содержать объект канала после подключения
-        self.posts = None      # Здесь будут храниться полученные посты
+        self.posts = []      # Здесь будут храниться полученные посты
+
+    def _validate_credentials(self):
+        """Проверка наличия обязательных переменных"""
+        required_vars = {
+            'TELEGRAM_API_ID': self.api_id,
+            'TELEGRAM_API_HASH': self.api_hash,
+            'TELEGRAM_PHONE': self.phone
+        }
+
+        missing_vars = [name for name, value in required_vars.items() if not value]
+
+        if missing_vars:
+            raise ValueError(
+                f"Отсутствуют обязательные переменные окружения: {', '.join(missing_vars)}\n"
+                "Пожалуйста, создайте .env файл со следующими переменными:\n"
+                "TELEGRAM_API_ID=ваш_api_id\n"
+                "TELEGRAM_API_HASH=ваш_api_hash\n"
+                "TELEGRAM_PHONE=ваш_номер_телефона"
+            )
+
+
 
     async def connect_to_channel(self):
         """Подключение к каналу и получение информации о нем"""
@@ -92,3 +114,18 @@ class TelegramChannelParser:
     def save_to_json(self):
         """Сохранение в json"""
         DataStorage.save_as_json(self.posts, 'telegram')
+
+    async def run(self, post_limit: int = 0):
+        """Основной метод для запуска парсера"""
+        async with self.client:
+            await self.connect_to_channel()
+            await self.get_posts(total_limit=post_limit)
+            self.save_to_json()
+
+
+# Пример использования
+if __name__ == "__main__":
+    parser = TelegramChannelParser('DevFM')  # Укажите username канала
+
+    # Запуск парсера с ограничением в 1 0 постов
+    parser.client.loop.run_until_complete(parser.run(post_limit=10))
