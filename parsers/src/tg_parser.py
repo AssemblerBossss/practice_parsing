@@ -19,18 +19,26 @@ class TelegramChannelParser:
         Args: channel_username (str): Название канала
         """
 
-        load_dotenv()
+        self._load_env_vars()        # Загрузка переменных окружения
+        self._validate_credentials() # Проверка обязательных переменных
 
-        self.api_id = int(os.getenv("TELEGRAM_API_ID"))
-        self.api_hash = os.getenv("TELEGRAM_API_HASH")
         self.channel_name = channel_name
 
         self.client = TelegramClient('session',
                                      api_id=self.api_id,
                                      api_hash=self.api_hash
                                      )
-        self.channel = None    # Будет содержать объект канала после подключения
+        self.channel = None  # Будет содержать объект канала после подключения
         self.posts = []      # Здесь будут храниться полученные посты
+
+    def _load_env_vars(self):
+        """Загрузка переменных окружения из .env файла"""
+        if not load_dotenv():
+            logger.error("Файл .env не найден, пытаюсь использовать системные переменные окружения")
+
+        self.api_id = os.getenv('TELEGRAM_API_ID')
+        self.api_hash = os.getenv('TELEGRAM_API_HASH')
+        self.phone = os.getenv('TELEGRAM_PHONE')
 
     def _validate_credentials(self):
         """Проверка наличия обязательных переменных"""
@@ -50,8 +58,6 @@ class TelegramChannelParser:
                 "TELEGRAM_API_HASH=ваш_api_hash\n"
                 "TELEGRAM_PHONE=ваш_номер_телефона"
             )
-
-
 
     async def connect_to_channel(self):
         """Подключение к каналу и получение информации о нем"""
