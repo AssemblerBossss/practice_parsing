@@ -66,19 +66,18 @@ class TelegramChannelParser:
             if total_limit != 0 and total_count_of_messages >= total_limit: # достигли/превысили лимит
                 break
 
-            offset_id += history.offset_id[-1].id # ID для следующего запроса
+            offset_id += history.history[-1].id # ID для следующего запроса
 
-
-def _process_messages(self, messages):
-    """Обработка и сохранение сообщений"""
-    for message in messages:
-       post_data = {
-           'id': message.id,
-            'date': message.date.isoformat(),
-            'text': message.message,
-            'views': getattr(message, 'views', None),
-            'media': bool(message.media),
-            'is_forward': bool(message.fwd_from),
-        }
-        self.posts.append(post_data)
+    def _process_messages(self, messages):
+        """Обработка и сохранение сообщений"""
+        for message in messages:
+            post_data = {
+                'id': message.id,
+                'date': message.date.isoformat(),
+                'text': message.message,
+                'views': getattr(message, 'views', None),
+                'media': bool(message.media),
+                'is_forward': bool(message.fwd_from)
+            }
+            self.posts.append(post_data)
 
