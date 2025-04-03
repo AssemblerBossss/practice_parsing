@@ -2,7 +2,7 @@ from pathlib import Path
 
 # Разрешенные файлы для чтения
 ALLOWED_FILES = {
-    'parsers': 'parsers.json',
+    'habr': 'habr.json',
     'pikabu': 'pikabu.json',
     'telegram': 'telegram.json'
 }

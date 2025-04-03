@@ -1,7 +1,7 @@
 import json
 from typing import Literal
 from loggers import setup_logger
-import datetime
+from datetime import datetime
 from storage.storage_config import (DATA_DIR, ALLOWED_FILES)
 
 logger = setup_logger("saving_logger")
@@ -9,13 +9,13 @@ logger = setup_logger("saving_logger")
 
 class DataStorage:
     @staticmethod
-    def save_as_json(posts, filename: Literal['parsers', 'pikabu', 'telegram']) -> bool:
+    def save_as_json(posts, filename: Literal['habr', 'pikabu', 'telegram']) -> bool:
         DATA_DIR.mkdir(exist_ok=True, parents=True)
 
         if filename not in ALLOWED_FILES:
             logger.error("Указано неверное имя для сохранения в json")
             raise ValueError(f"Invalid filename. Allowed names: {list(ALLOWED_FILES.keys())}")
-
+        filename = filename + '.json'
         file_path = DATA_DIR / filename
 
         output_data = {
@@ -36,7 +36,7 @@ class DataStorage:
             return False
 
     @staticmethod
-    def read_json(source: Literal['parsers', 'pikabu', 'telegram']) -> dict[dict, list[dict[str, str]]]:
+    def read_json(source: Literal['habr', 'pikabu', 'telegram']) -> dict[dict, list[dict[str, str]]]:
         """Чтение данных из JSON файла"""
 
         if source not in ALLOWED_FILES:

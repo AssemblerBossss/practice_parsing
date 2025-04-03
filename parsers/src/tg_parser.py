@@ -32,6 +32,7 @@ class TelegramChannelParser:
         self.posts = None      # Здесь будут храниться полученные посты
 
     async def connect_to_channel(self):
+        """Подключение к каналу и получение информации о нем"""
         self.channel = await self.client.get_entity(self.channel_name)
 
         if not isinstance(self.channel, Channel):
@@ -39,6 +40,12 @@ class TelegramChannelParser:
             logger.error('Нет канала с таким именем')
 
     async def get_posts(self, limit: int = 100, total_limit: int = 500):
+        """
+        Получение постов из канала
+        :param limit: Количество постов за один запрос (max 100)
+        :param total_limit: Общее ограничение количества постов (0 - без ограничений)
+        """
+
         if not self.channel:
             await self.connect_to_channel()
 
@@ -83,4 +90,5 @@ class TelegramChannelParser:
             self.posts.append(post_data)
 
     def save_to_json(self):
+        """Сохранение в json"""
         DataStorage.save_as_json(self.posts, 'telegram')
