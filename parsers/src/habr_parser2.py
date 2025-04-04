@@ -68,8 +68,8 @@ class HabrParser:
         articles = []
         for post in posts:
             try:
-                title_tag = post.find('strong') if posts.find('strong') else None
-                time_tag = post.find('time') or posts.find('span', class_='tm-publication-date')
+                title_tag = post.find('strong') if post.find('strong') else None
+                time_tag = post.find('time') or post.find('span', class_='tm-publication-date')
 
                 content = ''
 
