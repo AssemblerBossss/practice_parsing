@@ -1,14 +1,14 @@
 import os
 from logging import Logger
 from dotenv import load_dotenv
-from loggers import setup_logger
+from loggers import setup_logger, DEFAULT_TELEGRAM_LOG_FILE
 from storage import DataStorage
 
 from telethon.sync import TelegramClient                      # Основной клиент для работы(синхронный)
 from telethon.tl.functions.messages import GetHistoryRequest  # Получение истории сообщений из чата
 from telethon.tl.types import Channel                         # Тип, представляющий тг-канал
 
-logger: Logger = setup_logger('telegram_logger')
+logger: Logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
 
 
 class TelegramChannelParser:
@@ -24,7 +24,7 @@ class TelegramChannelParser:
         self.channel_name = channel_name
 
         self.client = TelegramClient('session',
-                                     api_id=self.api_id,
+                                     api_id=int(self.api_id),
                                      api_hash=self.api_hash
                                      )
         self.channel = None  # Будет содержать объект канала после подключения
@@ -60,8 +60,8 @@ class TelegramChannelParser:
         self.channel = await self.client.get_entity(self.channel_name)
 
         if not isinstance(self.channel, Channel):
-            raise TypeError('Channel must be Channel')
             logger.error('Нет канала с таким именем')
+            raise TypeError('Channel must be Channel')
 
     async def get_posts(self, limit: int = 100, total_limit: int = 500):
         """
@@ -127,7 +127,7 @@ class TelegramChannelParser:
 
 # Пример использования
 if __name__ == "__main__":
-    parser = TelegramChannelParser('DevFM')  # Укажите username канала
+    parser = TelegramChannelParser('DevFM')
 
-    # Запуск парсера с ограничением в 1 0 постов
-    parser.client.loop.run_until_complete(parser.run(post_limit=10))
+    # Запуск парсера с ограничением в 100 постов
+    parser.client.loop.run_until_complete(parser.run(post_limit=100))
