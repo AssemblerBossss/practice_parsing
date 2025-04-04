@@ -13,10 +13,10 @@ class HabrParser:
     def __init__(self, username: str, max_pages: int = 2):
         self.username = username
         self.max_pages = max_pages
-        self.base_url = 'https://habr.com/'
+        self.base_url = "https://habr.com"
         self.articles = []
         self.ua = UserAgent()
-        self.logger = setup_logger('habr_logger', log_file='habr')
+        self.logger = setup_logger('habr_logger', log_file=DEFAULT_HABR_LOG_FILE)
         self.session = None
         self.headers = {
             "User-Agent": self.ua.chrome,
@@ -39,26 +39,37 @@ class HabrParser:
             await self.session.close()
 
     async def fetch_page(self, page: int) -> Optional[str]:
+        """Загружает указанную страницу статей автора.
+
+        Возвращает HTML-текст страницы или None при ошибке.
+        """
         url = f"{self.base_url}/ru/users/{self.username}/posts/page{page}/"
+
+        #url = f"{base_url}/ru/users/{username}/posts/page{page}/"
+
         try:
             async with self.session.get(url) as response:
                 if response.status != 200:
                     self.logger.error(f"Ошибка HTTP: {response.status}")
                     return None
-                logger.info(f"Страница {page}: статус {response.status}")
+                self.logger.info(f"Страница {page}: статус {response.status}")
                 return await response.text()
         except Exception as e:
             self.logger.error(f"Ошибка при загрузке страницы {page}: {str(e)}")
             return None
 
     async def parse_page(self, html: str) -> List[Dict[str, str]]:
+        """Извлекает данные статей из HTML.
+        Возвращает список словарей с title, date и content.
+        Продолжает работу при ошибках парсинга отдельных статей."""
+
         soup = BeautifulSoup(html, 'lxml')
         posts = soup.find_all('article', class_='tm-articles-list__item_no-padding')
-
+        articles = []
         for post in posts:
             try:
-                title_tag = posts.find('strong') if posts.find('strong') else None
-                time_tag = posts.find('time') or posts.find('span', class_='tm-publication-date')
+                title_tag = post.find('strong') if posts.find('strong') else None
+                time_tag = post.find('time') or posts.find('span', class_='tm-publication-date')
 
                 content = ''
 
@@ -69,7 +80,7 @@ class HabrParser:
                     self.logger.warning("Не найдены теги в статье")
                     continue
 
-                self.articles.append({
+                articles.append({
                     'title': title_tag.text.strip(),
                     'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
                     'content': content
@@ -79,3 +90,34 @@ class HabrParser:
                 logger.error(f"Ошибка обработки статьи: {str(e)}")
                 logger.debug(f"Проблемная статья:\n{post.prettify()[:300]}...")
                 continue
+        return articles
+
+    async def get_articles(self) -> List[Dict[str, str]]:
+        for page in range(1, self.max_pages + 1):
+            html = await self.fetch_page(page)
+            if not html:
+                continue
+
+            articles = await self.parse_page(html)
+            if not articles:
+                logger.warning(f"Не найдено статей на странице {page}")
+                continue
+
+            self.articles.extend(articles)
+            DataStorage.save_as_json(self.articles, 'habr')
+            await asyncio.sleep(2)
+        return self.articles
+
+
+async def main():
+    async with HabrParser(username="DevFM") as parser:
+        articles = await parser.get_articles()
+
+        if not articles:
+            logger.warning("Не найдено ни одной статьи! Проверьте:")
+        else:
+            logger.info(f"\nНайдено статей: {len(articles)}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

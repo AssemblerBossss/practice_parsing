@@ -127,7 +127,7 @@ class TelegramChannelParser:
 
 # Пример использования
 if __name__ == "__main__":
-    parser = TelegramChannelParser('DevFM')  # Укажите username канала
+    parser = TelegramChannelParser('DevFM')
 
-    # Запуск парсера с ограничением в 1 0 постов
-    parser.client.loop.run_until_complete(parser.run(post_limit=10))
+    # Запуск парсера с ограничением в 100 постов
+    parser.client.loop.run_until_complete(parser.run(post_limit=100))
