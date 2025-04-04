@@ -24,7 +24,7 @@ class TelegramChannelParser:
         self.channel_name = channel_name
 
         self.client = TelegramClient('session',
-                                     api_id=self.api_id,
+                                     api_id=int(self.api_id),
                                      api_hash=self.api_hash
                                      )
         self.channel = None  # Будет содержать объект канала после подключения
@@ -60,8 +60,8 @@ class TelegramChannelParser:
         self.channel = await self.client.get_entity(self.channel_name)
 
         if not isinstance(self.channel, Channel):
-            raise TypeError('Channel must be Channel')
             logger.error('Нет канала с таким именем')
+            raise TypeError('Channel must be Channel')
 
     async def get_posts(self, limit: int = 100, total_limit: int = 500):
         """
