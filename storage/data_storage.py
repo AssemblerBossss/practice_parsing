@@ -1,7 +1,7 @@
 import json
-from typing import Optional, Dict, Any, Literal
+from typing import Literal
 from loggers import setup_logger
-import datetime
+from datetime import datetime
 from storage.storage_config import (DATA_DIR, ALLOWED_FILES)
 
 logger = setup_logger("saving_logger")
@@ -9,9 +9,14 @@ logger = setup_logger("saving_logger")
 
 class DataStorage:
     @staticmethod
-    def save_as_json(posts, file_name: str) -> bool:
+    def save_as_json(posts, filename: Literal['habr', 'pikabu', 'telegram']) -> bool:
         DATA_DIR.mkdir(exist_ok=True, parents=True)
-        file_path = DATA_DIR / file_name
+
+        if filename not in ALLOWED_FILES:
+            logger.error("Указано неверное имя для сохранения в json")
+            raise ValueError(f"Invalid filename. Allowed names: {list(ALLOWED_FILES.keys())}")
+        filename = filename + '.json'
+        file_path = DATA_DIR / filename
 
         output_data = {
             'metadata': {
@@ -24,7 +29,7 @@ class DataStorage:
         try:
             with open(file_path , 'w', encoding='utf-8') as f:
                 json.dump(output_data, f, ensure_ascii=False, indent=4)
-            logger.info(f"Saved {len(output_data)} posts to {file_path}")
+            logger.info(f"Saved {len(posts)} posts to {file_path}")
             return True
         except Exception as e:
             logger.error(f"Failed to save posts: {str(e)}")
