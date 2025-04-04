@@ -1,14 +1,14 @@
 import os
 from logging import Logger
 from dotenv import load_dotenv
-from loggers import setup_logger
+from loggers import setup_logger, DEFAULT_TELEGRAM_LOG_FILE
 from storage import DataStorage
 
 from telethon.sync import TelegramClient                      # Основной клиент для работы(синхронный)
 from telethon.tl.functions.messages import GetHistoryRequest  # Получение истории сообщений из чата
 from telethon.tl.types import Channel                         # Тип, представляющий тг-канал
 
-logger: Logger = setup_logger('telegram_logger')
+logger: Logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
 
 
 class TelegramChannelParser:
