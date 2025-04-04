@@ -2,7 +2,7 @@ import aiohttp
 import asyncio
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
-from typing import Optional
+from typing import Optional, List, Dict
 
 from loggers import setup_logger, DEFAULT_HABR_LOG_FILE
 from storage import DataStorage
@@ -50,3 +50,32 @@ class HabrParser:
         except Exception as e:
             self.logger.error(f"Ошибка при загрузке страницы {page}: {str(e)}")
             return None
+
+    async def parse_page(self, html: str) -> List[Dict[str, str]]:
+        soup = BeautifulSoup(html, 'lxml')
+        posts = soup.find_all('article', class_='tm-articles-list__item_no-padding')
+
+        for post in posts:
+            try:
+                title_tag = posts.find('strong') if posts.find('strong') else None
+                time_tag = posts.find('time') or posts.find('span', class_='tm-publication-date')
+
+                content = ''
+
+                for p in post.find_all('p'):
+                    content += p.get_text(separator=" ")
+
+                if not title_tag or not time_tag:
+                    self.logger.warning("Не найдены теги в статье")
+                    continue
+
+                self.articles.append({
+                    'title': title_tag.text.strip(),
+                    'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
+                    'content': content
+                })
+                self.logger.info(f"Найдена статья: {title_tag.text.strip()}")
+            except Exception as e:
+                logger.error(f"Ошибка обработки статьи: {str(e)}")
+                logger.debug(f"Проблемная статья:\n{post.prettify()[:300]}...")
+                continue
