@@ -125,6 +125,7 @@ class TelegramChannelParser:
             self.save_to_json()
 
 
+
 # Пример использования
 if __name__ == "__main__":
     parser = TelegramChannelParser('DevFM')
