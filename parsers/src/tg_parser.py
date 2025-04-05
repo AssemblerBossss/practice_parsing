@@ -63,7 +63,7 @@ class TelegramChannelParser:
             logger.error('Нет канала с таким именем')
             raise TypeError('Channel must be Channel')
 
-    async def get_posts(self, limit: int = 100, total_limit: int = 500):
+    async def get_posts(self, limit: int = 50, total_limit: int = 0):
         """
         Получение постов из канала
         :param limit: Количество постов за один запрос (max 100)
@@ -98,7 +98,7 @@ class TelegramChannelParser:
             if total_limit != 0 and total_count_of_messages >= total_limit:  # достигли/превысили лимит
                 break
 
-            offset_id += history.history[-1].id  # ID для следующего запроса
+            offset_id += history.messages[-1].id  # ID для следующего запроса
 
     def _process_messages(self, messages):
         """Обработка и сохранение сообщений"""
@@ -117,7 +117,7 @@ class TelegramChannelParser:
         """Сохранение в json"""
         DataStorage.save_as_json(self.posts, 'telegram')
 
-    async def run(self, post_limit: int = 0):
+    async def run(self, post_limit: int = 500):
         """Основной метод для запуска парсера"""
         async with self.client:
             await self.connect_to_channel()
