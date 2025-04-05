@@ -107,8 +107,8 @@ class HabrParser:
         return self.articles
 
 
-async def main():
-    async with HabrParser(username="DevFM") as parser:
+async def start_habr(username: str = 'DevFM'):
+    async with HabrParser(username) as parser:
         articles = await parser.get_articles()
 
         if not articles:
@@ -118,4 +118,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(start_habr())
