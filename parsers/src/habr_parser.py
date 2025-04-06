@@ -29,6 +29,15 @@ class HabrParser:
         """Генерирует MD5 хеш контента статьи"""
         return md5(content.strip().encode("utf-8")).hexdigest()
 
+    def _is_duplicate(self, content: str) -> bool:
+        """Проверяет, является ли статья дубликатом"""
+        content_hash = self._get_content_hash(content)
+        if content_hash in self.unique_hashes:
+            self.logger.warning(f"Найден дубликат статьи")
+            return True
+        self.unique_hashes.add(content_hash)
+        return False
+
     async def __aenter__(self):
         """Инициализирует асинхронную HTTP-сессию при входе в контекстный блок"""
 
@@ -84,18 +93,16 @@ class HabrParser:
                     self.logger.warning("Не найдены теги в статье")
                     continue
 
-                # Проверка на дубликат
-                content_hash: str = self._get_content_hash(content)
-                if content_hash in self.unique_hashes:
+                if self._is_duplicate(content):
                     self.logger.warning(f"Найден дубликат статьи: {title_tag.text.strip()}")
                     continue
 
                 articles.append({
                     'title': title_tag.text.strip(),
                     'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
-                    'content': content
+                    'content': content,
                 })
-                self.logger.info(f"Найдена статья: {title_tag.text.strip()}")
+                self.logger.info(f"Найдена уникальная статья: {title_tag.text.strip()}")
             except Exception as e:
                 logger.error(f"Ошибка обработки статьи: {str(e)}")
                 logger.debug(f"Проблемная статья:\n{post.prettify()[:300]}...")
