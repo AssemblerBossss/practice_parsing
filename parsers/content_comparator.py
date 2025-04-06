@@ -1,18 +1,22 @@
-import json
-from collections import defaultdict, Counter
 import re
+from collections import defaultdict, Counter
 from math import log
-from typing import List, Dict, Tuple, Set
 
-# Конфигурация
-STOP_NGRAMS = {"как я", "в этой", "для того чтобы", "что", "как", "на", "в", "и", "с"}  # Пример стоп-нграмм
-MIN_ABSOLUTE_THRESHOLD = 60  # Минимальное абсолютное число совпадений
-MIN_RELATIVE_THRESHOLD = 0.9  # 5% от длины меньшего поста
-NGRAM_SIZE = 3  # Размер n-граммы
+from loggers import setup_logger
+from storage import DataStorage
+from .comporator_config import (STOP_NGRAMS,
+                                MIN_ABSOLUTE_THRESHOLD,
+                                MIN_RELATIVE_THRESHOLD,
+                                NGRAM_SIZE)
 
 
 def preprocess_text(text: str) -> str:
-    """Предварительная обработка текста"""
+    """
+    - Приведение к нижнему регистру
+    - Удаление всей пунктуации
+    - Нормализацию пробелов (удаление лишних пробелов)
+    - Удаление начальных/конечных пробелов
+    """
     if not text:
         return ""
     text = text.lower()
@@ -21,92 +25,140 @@ def preprocess_text(text: str) -> str:
     return text
 
 
-def generate_ngrams(text: str, n: int) -> List[str]:
-    """Генерация n-грамм с фильтрацией стоп-фраз"""
+def generate_ngrams(text: str, n: int) -> list[str]:
+    """
+    Генерирует n-граммы из текста с фильтрацией стоп-фраз.
+    1. Разбивает текст на слова
+    2. Генерирует все возможные последовательности длины N
+    3. Фильтрует n-граммы, присутствующие в STOP_NGRAMS
+    """
+    if n <= 0:
+        raise ValueError("n must be positive integer")
+
     words = text.split()
     ngrams = [' '.join(words[i:i + n]) for i in range(len(words) - n + 1)]
     return [ngram for ngram in ngrams if ngram not in STOP_NGRAMS]
 
 
-def compute_tfidf_weights(posts: List[Dict]) -> Dict[str, float]:
-    """Вычисление TF-IDF весов для всех n-грамм в коллекции"""
-    ngram_doc_freq = Counter()
-    total_docs = len(posts)
+def compute_tfidf_weights(documents: list[dict]) -> dict[str, float]:
+    """
+    Вычисляет IDF веса для всех n-грамм в коллекции документов.
 
-    # Считаем DF (document frequency) для каждой n-граммы
-    for post in posts:
-        content = post.get('content', '') or post.get('text', '') or post.get('title', '')
-        text = preprocess_text(content)
-        ngrams = set(generate_ngrams(text, NGRAM_SIZE))
-        ngram_doc_freq.update(ngrams)
+    Args:
+        documents: Список документов, где каждый документ - это словарь,
+                 содержащий текст в одном из полей: 'content', 'text' или 'title'.
 
-    # Вычисляем IDF
-    tfidf_weights = {}
-    for ngram, df in ngram_doc_freq.items():
-        idf = log(total_docs / (df + 1))  # +1 чтобы избежать деления на 0
-        tfidf_weights[ngram] = idf
+    Returns:
+        Словарь, где ключи - n-граммы, значения - их IDF веса.
+    """
+    # Инициализация счетчика встречаемости n-грамм в документах
+    ngram_document_frequency = Counter()
+    total_documents_count = len(documents)
 
-    return tfidf_weights
+    # Сбор статистики встречаемости n-грамм по всем документам
+    for document in documents:
+        # Извлечение текста из документа с учетом приоритета полей
+        document_text = (document.get('content', '')
+                         or document.get('text', '')
+                         or document.get('title', ''))
+
+        # Предобработка текста и генерация уникальных n-грамм
+        processed_text = preprocess_text(document_text)
+        document_ngrams = set(generate_ngrams(processed_text, NGRAM_SIZE))
+
+        # Обновление счетчика документов, содержащих каждую n-грамму
+        ngram_document_frequency.update(document_ngrams)
+
+    # Вычисление IDF весов для каждой n-граммы
+    inverse_document_frequency_weights = {
+        ngram: log(total_documents_count / (document_frequency + 1))  # +1 для сглаживания
+        for ngram, document_frequency in ngram_document_frequency.items()
+    }
+
+    return inverse_document_frequency_weights
 
 
-def find_similar_posts(habr_posts: List[Dict], telegram_posts: List[Dict], tfidf_weights: Dict[str, float]) -> List[
-    Tuple]:
-    """Поиск схожих постов с динамическим порогом и TF-IDF взвешиванием"""
-    # Индексируем посты с Habr
-    habr_index = defaultdict(list)
-    for post in habr_posts:
-        content = post.get('content', '') or post.get('title', '')
-        text = preprocess_text(content)
-        ngrams = set(generate_ngrams(text, NGRAM_SIZE))
-        for ngram in ngrams:
-            habr_index[ngram].append((post, ngrams))
+def find_similar_posts(
+        habr_posts: list[dict],
+        telegram_posts: list[dict],
+        tfidf_weights: dict[str, float]
+) -> list[tuple]:
+    """
+    Находит схожие посты между Habr и Telegram на основе n-грамм с TF-IDF взвешиванием.
 
-    # Ищем схожие посты в Telegram
-    similar_posts = []
-    for t_post in telegram_posts:
-        t_text = preprocess_text(t_post.get('text', ''))
-        t_ngrams = set(generate_ngrams(t_text, NGRAM_SIZE))
+    Args:
+        habr_posts: Список постов с Habr в формате словарей
+        telegram_posts: Список постов из Telegram в формате словарей
+        tfidf_weights: Словарь весов n-грамм (рассчитанный через compute_tfidf_weights)
 
-        # Считаем взвешенные совпадения для каждого поста Habr
-        habr_matches = defaultdict(float)
-        matched_posts = set()
+    Returns:
+        Список кортежей с информацией о найденных совпадениях:
+        (платформа, заголовок_habr, дата_habr, id_telegram, дата_telegram,
+         оценка_сходства, кол-во_нграмм_telegram, кол-во_нграмм_habr)
+    """
+    # Создаем индекс Habr постов по n-граммам
+    habr_ngram_index = defaultdict(list)
+    for habr_post in habr_posts:
+        post_content = habr_post.get('content', '') or habr_post.get('title', '')
+        processed_text = preprocess_text(post_content)
+        post_ngrams = set(generate_ngrams(processed_text, NGRAM_SIZE))
 
-        for ngram in t_ngrams:
-            if ngram in habr_index:
-                for h_post, h_ngrams in habr_index[ngram]:
-                    post_key = (h_post['title'], h_post.get('date', ''))
-                    if post_key not in matched_posts:
-                        # Вычисляем пересечение n-грамм с учетом весов
-                        common_ngrams = t_ngrams & h_ngrams
-                        score = sum(tfidf_weights.get(ng, 0) for ng in common_ngrams)
-                        habr_matches[post_key] = score
-                        matched_posts.add(post_key)
+        for ngram in post_ngrams:
+            habr_ngram_index[ngram].append((habr_post, post_ngrams))
 
-        # Применяем динамический порог
-        for (h_title, h_date), score in habr_matches.items():
-            min_length = min(len(t_ngrams), len(h_ngrams))
-            relative_threshold = max(
+    # Поиск схожих постов в Telegram
+    matched_posts = []
+
+    for telegram_post in telegram_posts:
+        telegram_text = preprocess_text(telegram_post.get('text', ''))
+        telegram_ngrams = set(generate_ngrams(telegram_text, NGRAM_SIZE))
+
+        # Храним совпадения с Habr постами
+        habr_post_matches = defaultdict(float)
+        processed_habr_posts = set()
+
+        for ngram in telegram_ngrams:
+            if ngram in habr_ngram_index:
+                for habr_post, habr_post_ngrams in habr_ngram_index[ngram]:
+                    post_identifier = (habr_post['title'], habr_post.get('date', ''))
+
+                    if post_identifier not in processed_habr_posts:
+                        # Вычисляем оценку сходства
+                        common_ngrams = telegram_ngrams & habr_post_ngrams
+                        similarity_score = sum(
+                            tfidf_weights.get(ngram, 0)
+                            for ngram in common_ngrams
+                        )
+                        habr_post_matches[post_identifier] = similarity_score
+                        processed_habr_posts.add(post_identifier)
+
+        # Фильтрация по порогу сходства
+        for (habr_title, habr_date), score in habr_post_matches.items():
+            min_ngrams_count = min(len(telegram_ngrams), len(habr_post_ngrams))
+            similarity_threshold = max(
                 MIN_ABSOLUTE_THRESHOLD,
-                MIN_RELATIVE_THRESHOLD * min_length
+                MIN_RELATIVE_THRESHOLD * min_ngrams_count
             )
 
-            if score >= relative_threshold:
-                similar_posts.append((
-                    'habr', h_title, h_date,
-                    t_post.get('id', ''), t_post.get('date', ''),
-                    score, len(t_ngrams), len(h_ngrams)
+            if score >= similarity_threshold:
+                matched_posts.append((
+                    'habr',
+                    habr_title,
+                    habr_date,
+                    telegram_post.get('id', ''),
+                    telegram_post.get('date', ''),
+                    score,
+                    len(telegram_ngrams),
+                    len(habr_post_ngrams)
                 ))
 
-    return similar_posts
+    return matched_posts
 
 
 def main():
     try:
-        with open('habr.json', 'r', encoding='utf-8') as f:
-            habr_posts = json.load(f).get('posts', [])
-
-        with open('telegram.json', 'r', encoding='utf-8') as f:
-            telegram_posts = json.load(f).get('posts', [])
+        habr_posts = DataStorage.read_json('habr')
+        telegram_posts = DataStorage.read_json('telegram')
     except Exception as e:
         print(f"Ошибка загрузки данных: {e}")
         return
