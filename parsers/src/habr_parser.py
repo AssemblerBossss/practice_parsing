@@ -84,6 +84,12 @@ class HabrParser:
                     self.logger.warning("Не найдены теги в статье")
                     continue
 
+                # Проверка на дубликат
+                content_hash: str = self._get_content_hash(content)
+                if content_hash in self.unique_hashes:
+                    self.logger.warning(f"Найден дубликат статьи: {title_tag.text.strip()}")
+                    continue
+
                 articles.append({
                     'title': title_tag.text.strip(),
                     'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
