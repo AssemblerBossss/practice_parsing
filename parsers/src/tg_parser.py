@@ -1,3 +1,4 @@
+import asyncio
 import os
 from logging import Logger
 from dotenv import load_dotenv
@@ -63,7 +64,7 @@ class TelegramChannelParser:
             logger.error('Нет канала с таким именем')
             raise TypeError('Channel must be Channel')
 
-    async def get_posts(self, limit: int = 100, total_limit: int = 500):
+    async def get_posts(self, limit: int = 50, total_limit: int = 0):
         """
         Получение постов из канала
         :param limit: Количество постов за один запрос (max 100)
@@ -82,7 +83,7 @@ class TelegramChannelParser:
                 offset_id=offset_id,
                 offset_date=None,
                 add_offset=0,
-                limit=limit,
+                limit=min(100, limit),
                 max_id=0,
                 min_id=0,
                 hash=0
@@ -92,13 +93,18 @@ class TelegramChannelParser:
                 logger.warning("Список сообщений пуст")
                 break
 
-            self._process_messages(history.messages)
+            messages = history.messages
+            self._process_messages(messages)
 
-            total_count_of_messages += len(history.messages)
-            if total_limit != 0 and total_count_of_messages >= total_limit:  # достигли/превысили лимит
+            total_count_of_messages += len(messages)
+            if 0 < total_limit <= total_count_of_messages:
                 break
 
-            offset_id += history.history[-1].id  # ID для следующего запроса
+            # Устанавливаем offset_id на ID последнего полученного сообщения
+            offset_id = messages[-1].id
+
+            # Небольшая задержка чтобы не нагружать сервер
+            await asyncio.sleep(1)
 
     def _process_messages(self, messages):
         """Обработка и сохранение сообщений"""
@@ -117,7 +123,7 @@ class TelegramChannelParser:
         """Сохранение в json"""
         DataStorage.save_as_json(self.posts, 'telegram')
 
-    async def run(self, post_limit: int = 0):
+    async def run(self, post_limit: int = 500):
         """Основной метод для запуска парсера"""
         async with self.client:
             await self.connect_to_channel()
