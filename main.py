@@ -9,8 +9,8 @@ async def main():
     # Запуск парсера с ограничением в 100 постов
 
     await start_habr(habr_name)
-    parser = TelegramChannelParser(telegram_name)
-    await parser.run(post_limit=600)
+    #parser = TelegramChannelParser(telegram_name)
+    #await parser.run(post_limit=600)
 
 if __name__ == "__main__":
     asyncio.run(main())

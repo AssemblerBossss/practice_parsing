@@ -6,6 +6,7 @@ logs/
 .idea/
 dist/
 storage/data/
+*.session
 
 # Distribution / packaging
 .Python

@@ -1,18 +1,17 @@
 import asyncio
 import os
-from logging import Logger
 from dotenv import load_dotenv
-from loggers import setup_logger, DEFAULT_TELEGRAM_LOG_FILE
-from storage import DataStorage
-
 from telethon.sync import TelegramClient                      # Основной клиент для работы(синхронный)
 from telethon.tl.functions.messages import GetHistoryRequest  # Получение истории сообщений из чата
 from telethon.tl.types import Channel                         # Тип, представляющий тг-канал
+from loggers import setup_logger, DEFAULT_TELEGRAM_LOG_FILE
+from storage import DataStorage
 
-logger: Logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
+logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
 
 
 class TelegramChannelParser:
+    """Класс парсера telegram-канала"""
     def __init__(self, channel_name: str):
         """
         Инициализирует парсер канала Telegram.
@@ -95,7 +94,7 @@ class TelegramChannelParser:
 
             messages = history.messages
             self._process_messages(messages)
-            logger.info(f"Загружено {len(messages)} постов из телеграмм-канала {self.channel_name}")
+            logger.info("Загружено %d постов из телеграмм-канала %s", len(messages), self.channel_name)
             total_count_of_messages += len(messages)
             if 0 < total_limit <= total_count_of_messages:
                 break
@@ -129,7 +128,6 @@ class TelegramChannelParser:
             await self.connect_to_channel()
             await self.get_posts(total_limit=post_limit)
             self.save_to_json()
-
 
 
 # Пример использования
