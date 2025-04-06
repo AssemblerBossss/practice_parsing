@@ -95,7 +95,7 @@ class TelegramChannelParser:
 
             messages = history.messages
             self._process_messages(messages)
-
+            logger.info(f"Загружено {len(messages)} постов из телеграмм-канала {self.channel_name}")
             total_count_of_messages += len(messages)
             if 0 < total_limit <= total_count_of_messages:
                 break

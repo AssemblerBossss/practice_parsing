@@ -36,7 +36,7 @@ class DataStorage:
             return False
 
     @staticmethod
-    def read_json(source: Literal['habr', 'pikabu', 'telegram']) -> dict[dict, list[dict[str, str]]]:
+    def read_json(source: Literal['habr', 'pikabu', 'telegram']) -> list[dict[str, str]]:
         """Чтение данных из JSON файла"""
 
         if source not in ALLOWED_FILES:
@@ -47,7 +47,7 @@ class DataStorage:
 
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+                data = json.load(f).get('posts', [])
             logger.info(f"Successfully read data from {file_path}")
             return data
         except FileNotFoundError:
