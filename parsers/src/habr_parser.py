@@ -3,6 +3,7 @@ import asyncio
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from typing import Optional, List, Dict
+from hashlib import md5
 
 from loggers import setup_logger, DEFAULT_HABR_LOG_FILE
 from storage import DataStorage
@@ -16,12 +17,17 @@ class HabrParser:
         self.base_url = "https://habr.com"
         self.articles = []
         self.ua = UserAgent()
+        self.unique_hashes = set()
         self.logger = setup_logger('habr_logger', log_file=DEFAULT_HABR_LOG_FILE)
         self.session = None
         self.headers = {
             "User-Agent": self.ua.chrome,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         }
+
+    def _get_content_hash(self, content: str) -> str:
+        """Генерирует MD5 хеш контента статьи"""
+        return md5(content.strip().encode("utf-8")).hexdigest()
 
     async def __aenter__(self):
         """Инициализирует асинхронную HTTP-сессию при входе в контекстный блок"""
