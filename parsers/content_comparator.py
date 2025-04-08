@@ -8,7 +8,7 @@ from .comporator_config import (STOP_NGRAMS,
                                 MIN_ABSOLUTE_THRESHOLD,
                                 MIN_RELATIVE_THRESHOLD,
                                 NGRAM_SIZE)
-
+logger = setup_logger("comporator", log_file="comporator.log")
 
 def preprocess_text(text: str) -> str:
     """
@@ -76,6 +76,31 @@ def compute_tfidf_weights(documents: list[dict]) -> dict[str, float]:
     }
 
     return inverse_document_frequency_weights
+
+
+def index_habr_posts(habr_posts: list[dict], ngram_size: int) -> dict[str, list[tuple[dict, set]]]:
+    """
+    Создает индекс постов Habr по n-граммам.
+
+    Args:
+        habr_posts: Список постов с Habr.
+        ngram_size: Размер n-грамм.
+
+    Returns:
+        Индекс n-грамм для постов Habr.
+    """
+    habr_ngram_index = defaultdict(list)
+    for habr_post in habr_posts:
+        post_content = habr_post.get('content', '') or habr_post.get('title', '')
+        processed_text = preprocess_text(post_content)
+        post_ngrams = set(generate_ngrams(processed_text, ngram_size))
+
+        for ngram in post_ngrams:
+            habr_ngram_index[ngram].append((habr_post, post_ngrams))
+
+    return habr_ngram_index
+
+
 
 
 def find_similar_posts(
@@ -171,15 +196,17 @@ def main():
     similar_posts = find_similar_posts(habr_posts, telegram_posts, tfidf_weights)
 
     # Вывод результатов
-    print(
-        f"Найдено {len(similar_posts)} пар схожих постов (порог: абсолютный={MIN_ABSOLUTE_THRESHOLD}, относительный={MIN_RELATIVE_THRESHOLD}):")
-    print("-" * 100)
+    logger.info("Найдено %d пар схожих постов (порог: абсолютный={MIN_ABSOLUTE_THRESHOLD}, относительный={MIN_RELATIVE_THRESHOLD}):",
+                len(similar_posts),
+                MIN_ABSOLUTE_THRESHOLD,)
+    logger.info("-" * 100)
     for i, (source, h_title, h_date, t_id, t_date, score, t_len, h_len) in enumerate(similar_posts, 1):
-        print(f"Пара #{i}:")
-        print(f"Habr: '{h_title}' ({h_date}) | {h_len} n-грамм")
-        print(f"Telegram (ID: {t_id}): {t_date} | {t_len} n-грамм")
-        print(f"Взвешенная оценка схожести: {score:.2f}")
-        print("-" * 100)
+        logger.info(f"Пара #{i}:")
+        logger.info(f"Habr: '{h_title}' ({h_date}) | {h_len} n-грамм")
+        logger.info(f"Telegram (ID: {t_id}): {t_date} | {t_len} n-грамм")
+        logger.info(f"Взвешенная оценка схожести: {score:.2f}")
+        logger.info("-" * 100)
+
 
 
 if __name__ == "__main__":
