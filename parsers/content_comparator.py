@@ -4,7 +4,7 @@ from math import log
 
 from loggers import setup_logger
 from storage import DataStorage
-from .comporator_config import (STOP_NGRAMS,
+from parsers.comporator_config import (STOP_NGRAMS,
                                 MIN_ABSOLUTE_THRESHOLD,
                                 MIN_RELATIVE_THRESHOLD,
                                 NGRAM_SIZE)
@@ -31,6 +31,12 @@ def generate_ngrams(text: str, n: int) -> list[str]:
     1. Разбивает текст на слова
     2. Генерирует все возможные последовательности длины N
     3. Фильтрует n-граммы, присутствующие в STOP_NGRAMS
+
+    Args:
+        text: Исходный текст
+        n: Размер n-граммы
+    Returns: Массив n-грамм
+
     """
     if n <= 0:
         raise ValueError("n must be positive integer")
@@ -101,42 +107,29 @@ def index_habr_posts(habr_posts: list[dict], ngram_size: int) -> dict[str, list[
     return habr_ngram_index
 
 
-
-
-def find_similar_posts(
-        habr_posts: list[dict],
+def find_matches(
         telegram_posts: list[dict],
-        tfidf_weights: dict[str, float]
+        habr_ngram_index: dict[str, list[tuple[dict, set]]],
+        tfidf_weights: dict[str, float],
+        ngram_size: int
 ) -> list[tuple]:
     """
-    Находит схожие посты между Habr и Telegram на основе n-грамм с TF-IDF взвешиванием.
+    Ищет совпадения между постами Telegram и Habr.
 
     Args:
-        habr_posts: Список постов с Habr в формате словарей
-        telegram_posts: Список постов из Telegram в формате словарей
-        tfidf_weights: Словарь весов n-грамм (рассчитанный через compute_tfidf_weights)
+        telegram_posts: Список постов из Telegram.
+        habr_ngram_index: Индекс n-грамм для постов Habr.
+        tfidf_weights: Словарь весов n-грамм.
+        ngram_size: Размер n-грамм.
 
     Returns:
-        Список кортежей с информацией о найденных совпадениях:
-        (платформа, заголовок_habr, дата_habr, id_telegram, дата_telegram,
-         оценка_сходства, кол-во_нграмм_telegram, кол-во_нграмм_habr)
+        Список кортежей с информацией о найденных совпадениях.
     """
-    # Создаем индекс Habr постов по n-граммам
-    habr_ngram_index = defaultdict(list)
-    for habr_post in habr_posts:
-        post_content = habr_post.get('content', '') or habr_post.get('title', '')
-        processed_text = preprocess_text(post_content)
-        post_ngrams = set(generate_ngrams(processed_text, NGRAM_SIZE))
-
-        for ngram in post_ngrams:
-            habr_ngram_index[ngram].append((habr_post, post_ngrams))
-
-    # Поиск схожих постов в Telegram
     matched_posts = []
 
     for telegram_post in telegram_posts:
         telegram_text = preprocess_text(telegram_post.get('text', ''))
-        telegram_ngrams = set(generate_ngrams(telegram_text, NGRAM_SIZE))
+        telegram_ngrams = set(generate_ngrams(telegram_text, ngram_size))
 
         # Храним совпадения с Habr постами
         habr_post_matches = defaultdict(float)
@@ -180,6 +173,29 @@ def find_similar_posts(
     return matched_posts
 
 
+def find_similar_posts(
+        habr_posts: list[dict],
+        telegram_posts: list[dict],
+        tfidf_weights: list[str, float],
+        ngram_size: int = 3
+) -> list[tuple]:
+    """
+    Находит схожие посты между Habr и Telegram на основе n-грамм с TF-IDF взвешиванием.
+
+    Args:
+        habr_posts: Список постов с Habr.
+        telegram_posts: Список постов из Telegram.
+        tfidf_weights: Словарь весов n-грамм.
+        ngram_size: Размер n-грамм.
+
+    Returns:
+        Список кортежей с информацией о найденных совпадениях.
+    """
+    habr_ngram_index = index_habr_posts(habr_posts, ngram_size)
+    matched_posts = find_matches(telegram_posts, habr_ngram_index, tfidf_weights, ngram_size)
+    return matched_posts
+
+
 def main():
     try:
         habr_posts = DataStorage.read_json('habr')
@@ -196,9 +212,10 @@ def main():
     similar_posts = find_similar_posts(habr_posts, telegram_posts, tfidf_weights)
 
     # Вывод результатов
-    logger.info("Найдено %d пар схожих постов (порог: абсолютный={MIN_ABSOLUTE_THRESHOLD}, относительный={MIN_RELATIVE_THRESHOLD}):",
+    logger.info("Найдено %d пар схожих постов (порог: абсолютный=%s, относительный=%s):",
                 len(similar_posts),
-                MIN_ABSOLUTE_THRESHOLD,)
+                MIN_ABSOLUTE_THRESHOLD,
+                MIN_RELATIVE_THRESHOLD)
     logger.info("-" * 100)
     for i, (source, h_title, h_date, t_id, t_date, score, t_len, h_len) in enumerate(similar_posts, 1):
         logger.info(f"Пара #{i}:")
