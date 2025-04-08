@@ -113,41 +113,15 @@ class TelegramChannelParser:
             # Безопасное получение текста
             text = message.message or ""
 
-            # Извлечение заголовка (улучшенная версия)
-            header = self._extract_header(text)
-
             post_data = {
                 'id': message.id,
                 'date': message.date.isoformat(),
-                'title': header,
                 'text': text if text else "",  # Гарантируем строку вместо null
                 'views': getattr(message, 'views', None),
                 'media': bool(message.media),
                 'is_forward': bool(message.fwd_from)
             }
             self.posts.append(post_data)
-
-    def _extract_header(self, text: str) -> str:
-        """Улучшенное извлечение заголовка из текста"""
-        if not text:
-            return ""
-        # Вариант 1: Жирный текст в HTML (<b>текст</b> или <strong>текст</strong>)
-        html_bold_match = re.search(r"<[b|strong]>(.*?)</[b|strong]>", text, re.IGNORECASE)
-        if html_bold_match:
-            return html_bold_match.group(1).strip()
-
-        # Вариант 2: Жирный текст в Markdown (**текст**)
-        bold_match = re.search(r"\*\*(.+?)\*\*", text)
-        if bold_match:
-            return bold_match.group(1).strip()
-
-        # Вариант 2: Первая строка с текстом (игнорируя пустые строки)
-        # lines = [line.strip() for line in text.split('\n') if line.strip()]
-        # if lines:
-        #     return lines[0]
-
-        # Вариант 3: Для постов только с медиа - возвращаем "Медиа-пост"
-        return "Медиа-пост"
 
     def save_to_json(self):
         """Сохранение в json"""
