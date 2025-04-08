@@ -1,4 +1,6 @@
 import json
+import openpyxl
+from openpyxl.styles import Font, Alignment
 from typing import Literal
 from datetime import datetime
 from loggers import setup_logger
@@ -78,3 +80,82 @@ class DataStorage:
         except Exception as e:
             logger.error("Error reading file %s: %s", file_path, str(e))
             return None
+
+    @staticmethod
+    def save_to_excel(similar_posts: list, filename: str = 'similar_posts.xlsx') -> bool:
+        """
+        Сохраняет посты в XLSX файл.
+        Args:
+            similar_posts: Данные для сохранения
+            filename: Имя файла (без расширения)
+        """
+        try:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = 'Схожие посты'
+
+            # Заголовки столбцов
+            headers = [
+                "№",
+                "Платформа",
+                "Заголовок (Habr)",
+                "Дата (Habr)",
+                "N-грамм (Habr)",
+                "ID (Telegram)",
+                "Заголовок (Telegram)",
+                "Дата (Telegram)",
+                "N-грамм (Telegram)",
+                "Оценка схожести"
+            ]
+
+            # Форматирование заголовков
+            header_font = Font(bold=True)
+            header_alignment = Alignment(horizontal='center', vertical='center')
+
+            for col_num, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_num, value=header)  # Создает ячейку в Excel-листе
+                cell.font = header_font                              # Устанавливает жирный шрифт
+                cell.alignment = header_alignment                    # Выравнивание по центру
+
+            for row_num, post in enumerate(similar_posts, 2):
+                source, h_title, h_date, t_id, t_title, t_date, score, t_len, h_len = post
+
+                ws.cell(row=row_num, column=1, value=row_num - 1)  # №
+                ws.cell(row=row_num, column=2, value=source)  # Платформа
+                ws.cell(row=row_num, column=3, value=h_title) # Заголовок Habr
+                ws.cell(row=row_num, column=4, value=h_date)  # Дата Habr
+                ws.cell(row=row_num, column=5, value=h_len)   # N-грамм Habr
+                ws.cell(row=row_num, column=6, value=t_id)    # ID Telegram
+                ws.cell(row=row_num, column=7, value=t_title) # Заголовок Telegram
+                ws.cell(row=row_num, column=8, value=t_date)  # Дата Telegram
+                ws.cell(row=row_num, column=9, value=t_len)   # N-грамм Telegram
+                ws.cell(row=row_num, column=10, value=score)  # Оценка схожести
+
+            # Настраиваем ширину столбцов
+            column_widths = {
+                'A': 5,  # №
+                'B': 10,  # Платформа
+                'C': 50,  # Заголовок Habr
+                'D': 20,  # Дата Habr
+                'E': 10,  # N-грамм Habr
+                'F': 15,  # ID Telegram
+                'G': 15,  # ID Telegram
+                'H': 20,  # Дата Telegram
+                'I': 10,  # N-грамм Telegram
+                'J': 15  # Оценка схожести
+            }
+
+            for col, width in column_widths.items():
+                ws.column_dimensions[col].width = width
+
+            # Добавляем дату генерации отчета
+            ws.cell(row=ws.max_row + 2, column=1,
+                    value=f"Отчет сгенерирован: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+            # Сохраняем файл
+            wb.save(filename)
+            logger.info("Результаты сохранены в файл: %s", filename)
+
+        except Exception as e:
+            logger.error("Ошибка при сохранении в Excel: %s", str(e))
+            raise

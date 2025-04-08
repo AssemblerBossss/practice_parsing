@@ -131,16 +131,20 @@ class TelegramChannelParser:
         """Улучшенное извлечение заголовка из текста"""
         if not text:
             return ""
+        # Вариант 1: Жирный текст в HTML (<b>текст</b> или <strong>текст</strong>)
+        html_bold_match = re.search(r"<[b|strong]>(.*?)</[b|strong]>", text, re.IGNORECASE)
+        if html_bold_match:
+            return html_bold_match.group(1).strip()
 
-        # Вариант 1: Жирный текст в Markdown (**текст**)
+        # Вариант 2: Жирный текст в Markdown (**текст**)
         bold_match = re.search(r"\*\*(.+?)\*\*", text)
         if bold_match:
             return bold_match.group(1).strip()
 
         # Вариант 2: Первая строка с текстом (игнорируя пустые строки)
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        if lines:
-            return lines[0]
+        # lines = [line.strip() for line in text.split('\n') if line.strip()]
+        # if lines:
+        #     return lines[0]
 
         # Вариант 3: Для постов только с медиа - возвращаем "Медиа-пост"
         return "Медиа-пост"

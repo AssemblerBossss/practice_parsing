@@ -164,6 +164,7 @@ def find_matches(
                     habr_title,
                     habr_date,
                     telegram_post.get('id', ''),
+                    telegram_post.get('title', ''),
                     telegram_post.get('date', ''),
                     score,
                     len(telegram_ngrams),
@@ -217,13 +218,14 @@ def main():
                 MIN_ABSOLUTE_THRESHOLD,
                 MIN_RELATIVE_THRESHOLD)
     logger.info("-" * 100)
-    for i, (source, h_title, h_date, t_id, t_date, score, t_len, h_len) in enumerate(similar_posts, 1):
+    for i, (source, h_title, h_date, t_id, t_title, t_date, score, t_len, h_len) in enumerate(similar_posts, 1):
         logger.info(f"Пара #{i}:")
         logger.info(f"Habr: '{h_title}' ({h_date}) | {h_len} n-грамм")
-        logger.info(f"Telegram (ID: {t_id}): {t_date} | {t_len} n-грамм")
+        logger.info(f"Telegram (ID: {t_id}), {t_title}: {t_date} | {t_len} n-грамм")
         logger.info(f"Взвешенная оценка схожести: {score:.2f}")
         logger.info("-" * 100)
 
+    DataStorage.save_to_excel(similar_posts)
 
 
 if __name__ == "__main__":
