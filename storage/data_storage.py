@@ -89,6 +89,9 @@ class DataStorage:
             similar_posts: Данные для сохранения
             filename: Имя файла (без расширения)
         """
+
+        file_path = DATA_DIR / filename
+
         try:
             wb = openpyxl.Workbook()
             ws = wb.active
@@ -102,7 +105,6 @@ class DataStorage:
                 "Дата (Habr)",
                 "N-грамм (Habr)",
                 "ID (Telegram)",
-                "Заголовок (Telegram)",
                 "Дата (Telegram)",
                 "N-грамм (Telegram)",
                 "Оценка схожести"
@@ -118,7 +120,7 @@ class DataStorage:
                 cell.alignment = header_alignment                    # Выравнивание по центру
 
             for row_num, post in enumerate(similar_posts, 2):
-                source, h_title, h_date, t_id, t_title, t_date, score, t_len, h_len = post
+                source, h_title, h_date, t_id, t_date, score, t_len, h_len = post
 
                 ws.cell(row=row_num, column=1, value=row_num - 1)  # №
                 ws.cell(row=row_num, column=2, value=source)  # Платформа
@@ -126,10 +128,9 @@ class DataStorage:
                 ws.cell(row=row_num, column=4, value=h_date)  # Дата Habr
                 ws.cell(row=row_num, column=5, value=h_len)   # N-грамм Habr
                 ws.cell(row=row_num, column=6, value=t_id)    # ID Telegram
-                ws.cell(row=row_num, column=7, value=t_title) # Заголовок Telegram
-                ws.cell(row=row_num, column=8, value=t_date)  # Дата Telegram
-                ws.cell(row=row_num, column=9, value=t_len)   # N-грамм Telegram
-                ws.cell(row=row_num, column=10, value=score)  # Оценка схожести
+                ws.cell(row=row_num, column=7, value=t_date)  # Дата Telegram
+                ws.cell(row=row_num, column=8, value=t_len)   # N-грамм Telegram
+                ws.cell(row=row_num, column=9, value=score)  # Оценка схожести
 
             # Настраиваем ширину столбцов
             column_widths = {
@@ -139,10 +140,9 @@ class DataStorage:
                 'D': 20,  # Дата Habr
                 'E': 10,  # N-грамм Habr
                 'F': 15,  # ID Telegram
-                'G': 15,  # ID Telegram
                 'H': 20,  # Дата Telegram
-                'I': 10,  # N-грамм Telegram
-                'J': 15  # Оценка схожести
+                'J': 10,  # N-грамм Telegram
+                'I': 15  # Оценка схожести
             }
 
             for col, width in column_widths.items():
@@ -153,7 +153,7 @@ class DataStorage:
                     value=f"Отчет сгенерирован: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
             # Сохраняем файл
-            wb.save(filename)
+            wb.save(file_path)
             logger.info("Результаты сохранены в файл: %s", filename)
 
         except Exception as e:

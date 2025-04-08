@@ -1,7 +1,7 @@
 # practice_parsing
 
 ```bash
-docker built -t post-comporator
+docker build -t post-comporator
 ```
 
 ```bash
