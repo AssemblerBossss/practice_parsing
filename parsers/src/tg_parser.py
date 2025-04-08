@@ -1,5 +1,7 @@
 import asyncio
 import os
+import re
+
 from dotenv import load_dotenv
 from telethon.sync import TelegramClient                      # Основной клиент для работы(синхронный)
 from telethon.tl.functions.messages import GetHistoryRequest  # Получение истории сообщений из чата
@@ -106,17 +108,42 @@ class TelegramChannelParser:
             await asyncio.sleep(1)
 
     def _process_messages(self, messages):
-        """Обработка и сохранение сообщений"""
+        """Обработка и сохранение сообщений с улучшенным извлечением заголовков"""
         for message in messages:
+            # Безопасное получение текста
+            text = message.message or ""
+
+            # Извлечение заголовка (улучшенная версия)
+            header = self._extract_header(text)
+
             post_data = {
                 'id': message.id,
                 'date': message.date.isoformat(),
-                'text': message.message,
+                'title': header,
+                'text': text if text else "",  # Гарантируем строку вместо null
                 'views': getattr(message, 'views', None),
                 'media': bool(message.media),
                 'is_forward': bool(message.fwd_from)
             }
             self.posts.append(post_data)
+
+    def _extract_header(self, text: str) -> str:
+        """Улучшенное извлечение заголовка из текста"""
+        if not text:
+            return ""
+
+        # Вариант 1: Жирный текст в Markdown (**текст**)
+        bold_match = re.search(r"\*\*(.+?)\*\*", text)
+        if bold_match:
+            return bold_match.group(1).strip()
+
+        # Вариант 2: Первая строка с текстом (игнорируя пустые строки)
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        if lines:
+            return lines[0]
+
+        # Вариант 3: Для постов только с медиа - возвращаем "Медиа-пост"
+        return "Медиа-пост"
 
     def save_to_json(self):
         """Сохранение в json"""
