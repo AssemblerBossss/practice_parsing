@@ -3,6 +3,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from typing import Optional, List, Dict
+from hashlib import md5
 
 from loggers import setup_logger, DEFAULT_HABR_LOG_FILE
 from storage import DataStorage
@@ -16,12 +17,26 @@ class HabrParser:
         self.base_url = "https://habr.com"
         self.articles = []
         self.ua = UserAgent()
+        self.unique_hashes = set()
         self.logger = setup_logger('habr_logger', log_file=DEFAULT_HABR_LOG_FILE)
         self.session = None
         self.headers = {
             "User-Agent": self.ua.chrome,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         }
+
+    def _get_content_hash(self, content: str) -> str:
+        """Генерирует MD5 хеш контента статьи"""
+        return md5(content.strip().encode("utf-8")).hexdigest()
+
+    def _is_duplicate(self, content: str) -> bool:
+        """Проверяет, является ли статья дубликатом"""
+        content_hash = self._get_content_hash(content)
+        if content_hash in self.unique_hashes:
+            self.logger.warning(f"Найден дубликат статьи")
+            return True
+        self.unique_hashes.add(content_hash)
+        return False
 
     async def __aenter__(self):
         """Инициализирует асинхронную HTTP-сессию при входе в контекстный блок"""
@@ -76,11 +91,16 @@ class HabrParser:
                     self.logger.warning("Не найдены обязательные теги в статье")
                     continue
 
+                if self._is_duplicate(content):
+                    self.logger.warning(f"Найден дубликат статьи: {title_tag.text.strip()}")
+                    continue
+
                 articles.append({
                     'title': title_tag.text.strip(),
                     'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
-                    'content': content
+                    'content': content,
                 })
+
                 self.logger.info("Найдена статья: %s", title_tag.text.strip())
             except Exception as e:
                 logger.error("Ошибка обработки статьи: %s", str(e))
