@@ -10,7 +10,6 @@ charset-normalizer==3.4.1
 dill==0.3.9
 dotenv==0.9.9
 fake-useragent==2.1.0
-flake8==7.1.2
 frozenlist==1.5.0
 idna==3.10
 isort==6.0.1
@@ -23,7 +22,6 @@ pyaes==1.6.1
 pyasn1==0.6.1
 pycodestyle==2.12.1
 pyflakes==3.2.0
-pylint==3.3.6
 python-dotenv==1.1.0
 requests==2.32.3
 rsa==4.9

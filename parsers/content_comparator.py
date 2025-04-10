@@ -196,7 +196,7 @@ def find_similar_posts(
     return matched_posts
 
 
-def main():
+def comporator_start():
     try:
         habr_posts = DataStorage.read_json('habr')
         telegram_posts = DataStorage.read_json('telegram')
@@ -228,4 +228,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    comporator_start()
