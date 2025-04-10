@@ -4,7 +4,7 @@ build:
 
 run:
 	docker run -it --rm \
-	  -e LOGS_DIR=/app/logs \
-	  -e STORAGE_DIR=/app/storage/data \
-	  -e SESSION_FILE=/app/session.session \
+	  -v $(PWD)/logs:/app/logs \
+	  -v $(PWD)/storage/data:/app/storage/data \
+	  -v $(PWD)/session.session:/app/session.session \
 	  post-comparator
