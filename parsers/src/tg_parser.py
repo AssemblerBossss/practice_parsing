@@ -1,18 +1,19 @@
 import asyncio
 import os
-from logging import Logger
-from dotenv import load_dotenv
-from loggers import setup_logger, DEFAULT_TELEGRAM_LOG_FILE
-from storage import DataStorage
+import re
 
+from dotenv import load_dotenv
 from telethon.sync import TelegramClient                      # Основной клиент для работы(синхронный)
 from telethon.tl.functions.messages import GetHistoryRequest  # Получение истории сообщений из чата
 from telethon.tl.types import Channel                         # Тип, представляющий тг-канал
+from loggers import setup_logger, DEFAULT_TELEGRAM_LOG_FILE
+from storage import DataStorage
 
-logger: Logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
+logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
 
 
 class TelegramChannelParser:
+    """Класс парсера telegram-канала"""
     def __init__(self, channel_name: str):
         """
         Инициализирует парсер канала Telegram.
@@ -95,7 +96,7 @@ class TelegramChannelParser:
 
             messages = history.messages
             self._process_messages(messages)
-
+            logger.info("Загружено %d постов из телеграмм-канала %s", len(messages), self.channel_name)
             total_count_of_messages += len(messages)
             if 0 < total_limit <= total_count_of_messages:
                 break
@@ -107,12 +108,15 @@ class TelegramChannelParser:
             await asyncio.sleep(1)
 
     def _process_messages(self, messages):
-        """Обработка и сохранение сообщений"""
+        """Обработка и сохранение сообщений с улучшенным извлечением заголовков"""
         for message in messages:
+            # Безопасное получение текста
+            text = message.message or ""
+
             post_data = {
                 'id': message.id,
                 'date': message.date.isoformat(),
-                'text': message.message,
+                'text': text if text else "",  # Гарантируем строку вместо null
                 'views': getattr(message, 'views', None),
                 'media': bool(message.media),
                 'is_forward': bool(message.fwd_from)
@@ -129,7 +133,6 @@ class TelegramChannelParser:
             await self.connect_to_channel()
             await self.get_posts(total_limit=post_limit)
             self.save_to_json()
-
 
 
 # Пример использования
