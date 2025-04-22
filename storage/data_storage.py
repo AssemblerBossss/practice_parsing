@@ -1,5 +1,6 @@
 import json
 import openpyxl
+from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font, Alignment
 from typing import Literal
 from datetime import datetime
@@ -90,6 +91,7 @@ class DataStorage:
             filename: Имя файла (без расширения)
         """
 
+        DATA_DIR.mkdir(exist_ok=True, parents=True)
         file_path = DATA_DIR / filename
 
         try:
@@ -159,3 +161,49 @@ class DataStorage:
         except Exception as e:
             logger.error("Ошибка при сохранении в Excel: %s", str(e))
             raise
+
+    @staticmethod
+    def save_telegram_to_excel(posts: list[dict], filename: str = "unmatched_telegram.xlsx"):
+        DATA_DIR.mkdir(exist_ok=True, parents=True)
+        file_path = DATA_DIR / filename
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Unmatched Telegram Posts"
+
+        if not posts:
+            ws.append(["Нет данных"])
+            wb.save(file_path)
+            return
+
+        headers = list(posts[0].keys())
+        ws.append(headers)
+
+        header_font = Font(bold=True)
+        header_alignment = Alignment(horizontal='center')
+
+        for col_idx, header in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = header_font
+            cell.alignment = header_alignment
+
+        for post in posts:
+            row = []
+            for key in headers:
+                value = post.get(key, '')
+                if key == "text" and isinstance(value, str):
+                    value = "'" + value
+                    cell = WriteOnlyCell(ws, value=value)
+                    cell.number_format = '@'  # Принудительно форматировать как текст
+                    cell.alignment = Alignment(wrap_text=True)
+                    row.append(cell)
+                else:
+                    row.append(value)
+            ws.append(row)
+
+        for column_cells in ws.columns:
+            length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
+            adjusted_width = min(length + 2, 50)
+            ws.column_dimensions[column_cells[0].column_letter].width = adjusted_width
+
+        wb.save(file_path)

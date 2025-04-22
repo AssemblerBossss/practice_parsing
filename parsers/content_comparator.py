@@ -107,71 +107,91 @@ def index_habr_posts(habr_posts: list[dict], ngram_size: int) -> dict[str, list[
     return habr_ngram_index
 
 
-def find_matches(
+def find_matching_posts(
         telegram_posts: list[dict],
         habr_ngram_index: dict[str, list[tuple[dict, set]]],
         tfidf_weights: dict[str, float],
         ngram_size: int
 ) -> list[tuple]:
     """
-    Ищет совпадения между постами Telegram и Habr.
-
-    Args:
-        telegram_posts: Список постов из Telegram.
-        habr_ngram_index: Индекс n-грамм для постов Habr.
-        tfidf_weights: Словарь весов n-грамм.
-        ngram_size: Размер n-грамм.
-
-    Returns:
-        Список кортежей с информацией о найденных совпадениях.
+    Находит уникальные соответствия между постами Telegram и Habr.
+    Каждому посту Habr соответствует не более одного поста Telegram с максимальной оценкой схожести.
+    Каждый пост Telegram может быть сопоставлен только с одним постом Habr.
     """
-    matched_posts = []
+    # Словарь для хранения наилучших соответствий для каждого поста Habr
+    habr_post_to_best_match = {}
 
     for telegram_post in telegram_posts:
         telegram_text = preprocess_text(telegram_post.get('text', ''))
-        telegram_ngrams = set(generate_ngrams(telegram_text, ngram_size))
+        telegram_post_ngrams = set(generate_ngrams(telegram_text, ngram_size))
 
-        # Храним совпадения с Habr постами
-        habr_post_matches = defaultdict(float)
-        processed_habr_posts = set()
+        # Временное хранилище совпадений для текущего поста Telegram
+        current_telegram_matches = {}
 
-        for ngram in telegram_ngrams:
+        for ngram in telegram_post_ngrams:
             if ngram in habr_ngram_index:
                 for habr_post, habr_post_ngrams in habr_ngram_index[ngram]:
-                    post_identifier = (habr_post['title'], habr_post.get('date', ''))
+                    habr_post_key = (habr_post['title'], habr_post.get('date', ''))
 
-                    if post_identifier not in processed_habr_posts:
-                        # Вычисляем оценку сходства
-                        common_ngrams = telegram_ngrams & habr_post_ngrams
-                        similarity_score = sum(
-                            tfidf_weights.get(ngram, 0)
-                            for ngram in common_ngrams
-                        )
-                        habr_post_matches[post_identifier] = similarity_score
-                        processed_habr_posts.add(post_identifier)
+                    # Вычисляем оценку схожести
+                    common_ngrams = telegram_post_ngrams & habr_post_ngrams
+                    similarity_score = sum(
+                        tfidf_weights.get(ngram, 0)
+                        for ngram in common_ngrams
+                    )
 
-        # Фильтрация по порогу сходства
-        for (habr_title, habr_date), score in habr_post_matches.items():
-            min_ngrams_count = min(len(telegram_ngrams), len(habr_post_ngrams))
+                    # Сохраняем лучшее соответствие для текущего поста Telegram
+                    if (habr_post_key not in current_telegram_matches or
+                            similarity_score > current_telegram_matches[habr_post_key][1]):
+                        current_telegram_matches[habr_post_key] = (telegram_post, similarity_score)
+
+        # Фильтруем по порогу и обновляем глобальные наилучшие соответствия
+        for habr_post_key, (telegram_post, score) in current_telegram_matches.items():
+            min_ngrams_count = min(len(telegram_post_ngrams), len(habr_post_ngrams))
             similarity_threshold = max(
                 MIN_ABSOLUTE_THRESHOLD,
                 MIN_RELATIVE_THRESHOLD * min_ngrams_count
             )
 
             if score >= similarity_threshold:
-                matched_posts.append((
-                    'habr',
-                    habr_title,
-                    habr_date,
-                    telegram_post.get('id', ''),
-                    telegram_post.get('date', ''),
-                    score,
-                    len(telegram_ngrams),
-                    len(habr_post_ngrams)
-                ))
+                # Обновляем если нашли лучшее соответствие для поста Habr
+                if (habr_post_key not in habr_post_to_best_match or
+                        score > habr_post_to_best_match[habr_post_key][2]):
+                    habr_post_to_best_match[habr_post_key] = (
+                        habr_post_key[0],  # title
+                        habr_post_key[1],  # date
+                        score,
+                        telegram_post.get('id', ''),
+                        telegram_post.get('date', ''),
+                        len(telegram_post_ngrams),
+                        len(habr_post_ngrams)
+                    )
 
-    return matched_posts
+    # Формируем итоговый список уникальных соответствий
+    unique_matches = []
+    used_telegram_post_ids = set()
 
+    # Сортируем соответствия по убыванию оценки схожести
+    sorted_matches = sorted(habr_post_to_best_match.values(), key=lambda x: -x[2])
+
+    for match in sorted_matches:
+        habr_title, habr_date, score, telegram_id, telegram_date, telegram_ngram_count, habr_ngram_count = match
+
+        # Проверяем что пост Telegram еще не использован
+        if telegram_id not in used_telegram_post_ids:
+            unique_matches.append((
+                'habr',
+                habr_title,
+                habr_date,
+                telegram_id,
+                telegram_date,
+                score,
+                telegram_ngram_count,
+                habr_ngram_count
+            ))
+            used_telegram_post_ids.add(telegram_id)
+
+    return unique_matches
 
 def find_similar_posts(
         habr_posts: list[dict],
@@ -192,7 +212,7 @@ def find_similar_posts(
         Список кортежей с информацией о найденных совпадениях.
     """
     habr_ngram_index = index_habr_posts(habr_posts, ngram_size)
-    matched_posts = find_matches(telegram_posts, habr_ngram_index, tfidf_weights, ngram_size)
+    matched_posts = find_matching_posts(telegram_posts, habr_ngram_index, tfidf_weights, ngram_size)
     return matched_posts
 
 
@@ -224,7 +244,23 @@ def comporator_start():
         logger.info(f"Взвешенная оценка схожести: {score:.2f}")
         logger.info("-" * 100)
 
+    # Сохраняем найденные пары
     DataStorage.save_to_excel(similar_posts)
+
+    # === ДОБАВЛЕНО: Сохранение неиспользованных Telegram постов ===
+    matched_telegram_ids = {match[3] for match in similar_posts}  # Индекс 3 = telegram_id
+    unmatched_telegram_posts = [
+        post for post in telegram_posts if post.get('id', '') not in matched_telegram_ids
+    ]
+
+    logger.info("Не найдено пары для %d Telegram постов.", len(unmatched_telegram_posts))
+
+    # Можно сохранить как JSON
+    # DataStorage.write_json(unmatched_telegram_posts, 'unmatched_telegram')
+
+    # Или дополнительно — как Excel, если нужно визуально посмотреть
+    DataStorage.save_telegram_to_excel(unmatched_telegram_posts, filename='unmatched_telegram.xlsx')
+
 
 
 if __name__ == "__main__":

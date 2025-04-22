@@ -109,27 +109,22 @@ class HabrParser:
         return articles
 
     async def get_articles(self) -> List[Dict[str, str]]:
-        """Собирает статьи автора со всех страниц (1..max_pages).:
-        1. Загружает HTML-контент страницы
-        2. Парсит статьи со страницы
-        3. Сохраняет результаты в JSON файл после обработки каждой страницы
+        """Загружает статьи со всех страниц параллельно"""
+        tasks = [self.fetch_page(page) for page in range(1, self.max_pages + 1)]
+        html_pages = await asyncio.gather(*tasks)
 
-        Returns:
-        Список статей в формате [{'title': str, 'date': str, 'content': str}]
-        """
-        for page in range(1, self.max_pages + 1):
-            html = await self.fetch_page(page)
+        for page, html in enumerate(html_pages, start=1):
             if not html:
                 continue
 
             articles = await self.parse_page(html)
             if not articles:
-                logger.warning("Не найдено статей на странице %d", page)
+                self.logger.warning("Не найдено статей на странице %d", page)
                 continue
 
             self.articles.extend(articles)
             DataStorage.save_as_json(self.articles, 'habr')
-            await asyncio.sleep(2)
+
         return self.articles
 
 

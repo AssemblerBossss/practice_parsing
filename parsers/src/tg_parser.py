@@ -105,7 +105,7 @@ class TelegramChannelParser:
             offset_id = messages[-1].id
 
             # Небольшая задержка чтобы не нагружать сервер
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
     def _process_messages(self, messages):
         """Обработка и сохранение сообщений с улучшенным извлечением заголовков"""
