@@ -1839,18 +1839,6 @@ files = [
 ]
 
 [[package]]
-name = "razdel"
-version = "0.5.0"
-description = "Splits russian text into tokens, sentences, section. Rule-based"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "razdel-0.5.0-py3-none-any.whl", hash = "sha256:76f59691c3216b47d32fef6274c18c12d61f602f1444b7ef4b135b03801f6d37"},
-    {file = "razdel-0.5.0.tar.gz", hash = "sha256:4334c0fdfe34d4e888cf0ed854968c9df14f0a547df909a77f4634f9ffe626e6"},
-]
-
-[[package]]
 name = "regex"
 version = "2024.11.6"
 description = "Alternative regular expression module, to replace re."
@@ -2676,4 +2664,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "625fb422d04f3a23d6ed618abcbe19b16018caaec238c945b0183e0499bfaaaa"
+content-hash = "249e486cfd6be896cbf7a841329750fbfb590c07cee1c1d4d50066832f86314c"
