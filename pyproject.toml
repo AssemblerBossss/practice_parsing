@@ -25,6 +25,7 @@ scikit-learn = "^1.6.1"
 huggingface-hub = {extras = ["hf-xet"], version = "^0.30.2"}
 tqdm = "^4.67.1"
 sentence-transformers = "^4.1.0"
+razdel = "^0.5.0"
 
 
 [tool.poetry.group.dev.dependencies]

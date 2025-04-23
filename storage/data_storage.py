@@ -2,6 +2,7 @@ import json
 import openpyxl
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font, Alignment
+from openpyxl.utils import get_column_letter
 from typing import Literal
 from datetime import datetime
 from loggers import setup_logger

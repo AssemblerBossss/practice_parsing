@@ -1,5 +1,6 @@
 import json
 import torch
+import re
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -16,32 +17,23 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # === Загрузка модели SentenceTransformers с прогрессом ===
 print("🔄 Загрузка модели SentenceTransformers...")
-# Используем модель paraphrase-multilingual-MiniLM-L12-v2
 model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 model = model.to(DEVICE)
 print("✅ Модель загружена.")
 
-# Функция для получения эмбеддингов текста с возможностью кэширования
-def get_embedding(text, post_id=None):
-    """
-    Получаем эмбеддинг текста с возможностью кэширования.
-    Если пост уже был обработан, возвращаем его эмбеддинг из кэша.
-    """
-    if post_id and post_id in EMBEDDINGS_CACHE:
-        return EMBEDDINGS_CACHE[post_id]
+from razdel import sentenize
 
-    emb = model.encode(text, device=str(DEVICE))
+def normalize_text(text):
+    text = re.sub(r'https?://\S+', '', text)
+    text = re.sub(r'#', '', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip().lower()
 
-    if post_id:
-        EMBEDDINGS_CACHE[post_id] = emb
-
-    return emb
-
-# Функция для вычисления схожести между двумя текстами
-def calculate_similarity(text1, text2):
-    emb1 = get_embedding(text1)
-    emb2 = get_embedding(text2)
-    return cosine_similarity([emb1], [emb2])[0][0]
+def get_embeddings_for_posts(posts, key='text'):
+    texts = [normalize_text(post[key]) for post in posts]
+    with torch.no_grad():
+        embeddings = model.encode(texts, batch_size=16, show_progress_bar=True, device=str(DEVICE))
+    return embeddings
 
 # Удаление дубликатов в Telegram постах
 def remove_telegram_duplicates(telegram_posts, threshold=0.97):
@@ -50,25 +42,18 @@ def remove_telegram_duplicates(telegram_posts, threshold=0.97):
 
     print("🧹 Удаление дубликатов из Telegram-постов...")
 
+    embeddings = get_embeddings_for_posts(telegram_posts, key='text')
+
     for i, post_i in enumerate(tqdm(telegram_posts)):
-        post_id_i = post_i['id']
-
-        # Кэшируем эмбеддинги для каждого поста
-        emb_i = get_embedding(post_i['text'], post_id_i)
-
         if i in seen:
             continue
         best_j = i
         for j in range(i + 1, len(telegram_posts)):
-            post_j = telegram_posts[j]
-            post_id_j = post_j['id']
-
-            # Получаем эмбеддинги из кэша или вычисляем заново
-            emb_j = get_embedding(post_j['text'], post_id_j)
-            sim = cosine_similarity([emb_i], [emb_j])[0][0]
-
+            if j in seen:
+                continue
+            sim = cosine_similarity([embeddings[i]], [embeddings[j]])[0][0]
             if sim > threshold:
-                views_j = post_j.get('views') or 0
+                views_j = telegram_posts[j].get('views') or 0
                 views_best = telegram_posts[best_j].get('views') or 0
                 best_j = j if views_j > views_best else best_j
                 seen.add(j)
@@ -84,23 +69,26 @@ def match_posts(habr_posts, telegram_posts, threshold=0.9):
     unmatched_habr = []
     used_telegram_ids = set()
 
-    print("🔍 Сопоставление постов...")
+    #print("\ud83d\udd0d \u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u043e\u0441\u0442\u043e\u0432...")
 
-    for habr in tqdm(habr_posts):
-        best_match = None
+    habr_embeddings = get_embeddings_for_posts(habr_posts, key='content')
+    telegram_embeddings = get_embeddings_for_posts(telegram_posts, key='text')
+
+    for i, habr in enumerate(tqdm(habr_posts)):
+        best_match_idx = None
         best_score = 0
 
-        habr_content = habr['content']
-        for tele in telegram_posts:
+        for j, tele in enumerate(telegram_posts):
             if tele['id'] in used_telegram_ids:
                 continue
 
-            score = calculate_similarity(habr_content, tele['text'])
+            score = cosine_similarity([habr_embeddings[i]], [telegram_embeddings[j]])[0][0]
             if score > best_score:
                 best_score = score
-                best_match = tele
+                best_match_idx = j
 
         if best_score >= threshold:
+            best_match = telegram_posts[best_match_idx]
             matches.append({
                 "habr_title": habr['title'],
                 "habr_date": habr['date'],
@@ -116,13 +104,32 @@ def match_posts(habr_posts, telegram_posts, threshold=0.9):
 
     return matches, unmatched_habr
 
-# Сохранение результатов в Excel
+from openpyxl.utils import get_column_letter
+
+def auto_adjust_column_width(ws, dataframe):
+    for i, column in enumerate(dataframe.columns, 1):
+        max_length = max(
+            [len(str(cell)) for cell in dataframe[column].values] + [len(column)]
+        )
+        adjusted_width = min(max_length + 2, 100)
+        ws.column_dimensions[get_column_letter(i)].width = adjusted_width
+
 def save_to_excel(matched, unmatched, matched_path='matched_posts.xlsx', unmatched_path='unmatched_habr.xlsx'):
     matched_df = pd.DataFrame(matched)
     unmatched_df = pd.DataFrame(unmatched)
+    matched_df['telegram_text'] = matched_df['telegram_text'].str.replace('#', '', regex=False)
+    matched_df['habr_text'] = matched_df['habr_text'].str.replace('#', '', regex=False)
 
-    matched_df.to_excel(matched_path, index=False)
-    unmatched_df.to_excel(unmatched_path, index=False)
+    with pd.ExcelWriter(matched_path, engine='openpyxl') as writer:
+        matched_df.to_excel(writer, index=False, sheet_name='Matched')
+        ws = writer.sheets['Matched']
+        auto_adjust_column_width(ws, matched_df)
+
+    with pd.ExcelWriter(unmatched_path, engine='openpyxl') as writer:
+        unmatched_df.to_excel(writer, index=False, sheet_name='Unmatched')
+        ws = writer.sheets['Unmatched']
+        auto_adjust_column_width(ws, unmatched_df)
+
     print(f"✅ Сопоставленные пары записаны в {matched_path}")
     print(f"📄 Несопоставленные хабр-посты записаны в {unmatched_path}")
 
@@ -130,11 +137,11 @@ def save_to_excel(matched, unmatched, matched_path='matched_posts.xlsx', unmatch
 habr_posts = DataStorage.read_json('habr')
 telegram_posts = DataStorage.read_json('telegram')
 
-# === Предобработка ===
+# === \u041f\u0440\u0435\u0434\u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0430 ===
 telegram_posts = remove_telegram_duplicates(telegram_posts)
 
-# === Сопоставление постов ===
+# === \u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u043e\u0441\u0442\u043e\u0432 ===
 matched, unmatched = match_posts(habr_posts, telegram_posts)
 
-# === Сохранение ===
+# === \u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435 ===
 save_to_excel(matched, unmatched)
