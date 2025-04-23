@@ -1,14 +1,14 @@
 import re
 from collections import defaultdict, Counter
 from math import log
-
+from logging import DEBUG
 from loggers import setup_logger
 from storage import DataStorage
 from parsers.comporator_config import (STOP_NGRAMS,
                                 MIN_ABSOLUTE_THRESHOLD,
                                 MIN_RELATIVE_THRESHOLD,
                                 NGRAM_SIZE)
-logger = setup_logger("comporator", log_file="comporator.log")
+logger = setup_logger("comporator", log_file="comporator.log", log_level=DEBUG)
 
 def preprocess_text(text: str) -> str:
     """
@@ -238,11 +238,11 @@ def comporator_start():
                 MIN_RELATIVE_THRESHOLD)
     logger.info("-" * 100)
     for i, (source, h_title, h_date, t_id, t_date, score, t_len, h_len) in enumerate(similar_posts, 1):
-        logger.info(f"Пара #{i}:")
-        logger.info(f"Habr: '{h_title}' ({h_date}) | {h_len} n-грамм")
-        logger.info(f"Telegram (ID: {t_id}),: {t_date} | {t_len} n-грамм")
-        logger.info(f"Взвешенная оценка схожести: {score:.2f}")
-        logger.info("-" * 100)
+        logger.debug(f"Пара #{i}:")
+        logger.debug(f"Habr: '{h_title}' ({h_date}) | {h_len} n-грамм")
+        logger.debug(f"Telegram (ID: {t_id}),: {t_date} | {t_len} n-грамм")
+        logger.debug(f"Взвешенная оценка схожести: {score:.2f}")
+        logger.debug("-" * 100)
 
     # Сохраняем найденные пары
     DataStorage.save_to_excel(similar_posts)

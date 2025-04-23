@@ -1,6 +1,7 @@
 import re
 import torch
 import pandas as pd
+from logging import DEBUG
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from openpyxl.utils import get_column_letter
@@ -9,7 +10,7 @@ from tqdm import tqdm
 from storage import DataStorage
 from loggers import setup_logger
 
-logger = setup_logger(__name__, log_file="content_comporator_bert.log")
+logger = setup_logger(__name__, log_file="content_comporator_bert.log", log_level=DEBUG)
 
 EMBEDDINGS_CACHE:    dict[str, torch.tensor] = {}
 VISITED_POSTS_CACHE: dict[str, bool] = {}
@@ -45,8 +46,6 @@ class PostMatcher:
         logger.info("🧹 Удаление дубликатов из Telegram-постов...")
         filtered_posts = []
         seen = set()
-
-        print("🧹 Удаление дубликатов из Telegram-постов...")
 
         embeddings = self.get_embeddings_for_posts(telegram_posts, key='text')
 
@@ -105,6 +104,12 @@ class PostMatcher:
                     "telegram_text": best_match['text']
                 })
                 used_telegram_ids.add(best_match['id'])
+
+                logger.debug(f"# Найдена пара #:")
+                logger.debug("Habr:  %s:  %s ", habr['title'], habr['date'])
+                logger.debug(f"Telegram (ID: %s),: %s", best_match['id'],  best_match['date'])
+                logger.debug(f"Оценка схожести: %s", {best_score:.2})
+                logger.debug("-" * 100)
             else:
                 unmatched_habr.append(habr)
 
