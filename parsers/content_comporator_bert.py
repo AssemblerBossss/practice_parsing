@@ -36,7 +36,7 @@ def get_embeddings_for_posts(posts, key='text'):
     return embeddings
 
 # Удаление дубликатов в Telegram постах
-def remove_telegram_duplicates(telegram_posts, threshold=0.97):
+def remove_telegram_duplicates(telegram_posts, threshold=0.90):
     filtered_posts = []
     seen = set()
 
@@ -64,7 +64,7 @@ def remove_telegram_duplicates(telegram_posts, threshold=0.97):
     return filtered_posts
 
 # Сопоставление постов между Habr и Telegram
-def match_posts(habr_posts, telegram_posts, threshold=0.9):
+def match_posts(habr_posts, telegram_posts, threshold=0.65):
     matches = []
     unmatched_habr = []
     used_telegram_ids = set()
