@@ -47,6 +47,7 @@ def setup_logger(logger_name: str,
     # Настройка обработчика для файла
     if console_output:
         console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)  # Устанавливаем уровень логирования для консоли
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 

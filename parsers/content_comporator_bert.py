@@ -115,35 +115,7 @@ class PostMatcher:
 
         return matches, unmatched_habr
 
-
-    @staticmethod
-    def auto_adjust_column_width(ws, df: pd.DataFrame) -> None:
-        for i, column in enumerate(df.columns, 1):
-            max_length = max([len(str(cell)) for cell in df[column].values] + [len(column)])
-            ws.column_dimensions[get_column_letter(i)].width = min(max_length + 2, 100)
-
-
-    def save_to_excel(self, matched: list[dict], unmatched: list[dict], matched_path: str = 'matched_posts.xlsx',
-                      unmatched_path: str = 'unmatched_habr.xlsx') -> None:
-        matched_df = pd.DataFrame(matched)
-        unmatched_df = pd.DataFrame(unmatched)
-
-        matched_df['telegram_text'] = matched_df['telegram_text'].str.replace('#', '', regex=False)
-        matched_df['habr_text'] = matched_df['habr_text'].str.replace('#', '', regex=False)
-
-        with pd.ExcelWriter(matched_path, engine='openpyxl') as writer:
-            matched_df.to_excel(writer, index=False, sheet_name='Matched')
-            self.auto_adjust_column_width(writer.sheets['Matched'], matched_df)
-
-        with pd.ExcelWriter(unmatched_path, engine='openpyxl') as writer:
-            unmatched_df.to_excel(writer, index=False, sheet_name='Unmatched')
-            self.auto_adjust_column_width(writer.sheets['Unmatched'], unmatched_df)
-        logger.info(f"✅ Сопоставленные пары записаны в {matched_path}")
-        logger.info(f"📄 Несопоставленные хабр-посты записаны в {unmatched_path}")
-
-
-
-if __name__ == '__main__':
+def start():
     habr_posts = DataStorage.read_json('habr')
 
     telegram_posts = DataStorage.read_json('telegram')
@@ -151,4 +123,7 @@ if __name__ == '__main__':
     matcher = PostMatcher()
     telegram_posts = matcher.remove_telegram_duplicates(telegram_posts)
     matched, unmatched = matcher.match_posts(habr_posts, telegram_posts)
-    matcher.save_to_excel(matched, unmatched)
+    DataStorage.save_to_excel(matched, unmatched)
+
+if __name__ == '__main__':
+    start()

@@ -1,5 +1,6 @@
 import json
 import openpyxl
+import pandas as pd
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
@@ -8,7 +9,7 @@ from datetime import datetime
 from loggers import setup_logger
 from storage.storage_config import (DATA_DIR, ALLOWED_FILES)
 
-logger = setup_logger("saving_logger")
+logger = setup_logger("saving_logger", log_file="saving.log")
 
 
 class DataStorage:
@@ -42,7 +43,7 @@ class DataStorage:
         try:
             with open(file_path , 'w', encoding='utf-8') as f:
                 json.dump(output_data, f, ensure_ascii=False, indent=4)
-            logger.info("Saved %d posts to %s", len(posts), file_path)
+            logger.info("Saved %d posts to %s", len(posts), filename)
             return True
         except Exception as e:
             logger.error("Failed to save posts: %s", str(e))
@@ -71,7 +72,7 @@ class DataStorage:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f).get('posts', [])
-            logger.info("Successfully read data from %s", file_path)
+            logger.info("Successfully read data from %s", file_name)
             return data
         except FileNotFoundError:
             logger.error("File not found: %s", file_path)
@@ -83,85 +84,85 @@ class DataStorage:
             logger.error("Error reading file %s: %s", file_path, str(e))
             return None
 
-    @staticmethod
-    def save_to_excel(similar_posts: list, filename: str = 'similar_posts.xlsx') -> bool:
-        """
-        Сохраняет посты в XLSX файл.
-        Args:
-            similar_posts: Данные для сохранения
-            filename: Имя файла (без расширения)
-        """
+    # @staticmethod
+    # def save_to_excel(similar_posts: list, filename: str = 'similar_posts.xlsx') -> bool:
+    #     """
+    #     Сохраняет посты в XLSX файл.
+    #     Args:
+    #         similar_posts: Данные для сохранения
+    #         filename: Имя файла (без расширения)
+    #     """
+    #
+    #     DATA_DIR.mkdir(exist_ok=True, parents=True)
+    #     file_path = DATA_DIR / filename
+    #
+    #     try:
+    #         wb = openpyxl.Workbook()
+    #         ws = wb.active
+    #         ws.title = 'Схожие посты'
+    #
+    #         # Заголовки столбцов
+    #         headers = [
+    #             "№",
+    #             "Платформа",
+    #             "Заголовок (Habr)",
+    #             "Дата (Habr)",
+    #             "N-грамм (Habr)",
+    #             "ID (Telegram)",
+    #             "Дата (Telegram)",
+    #             "N-грамм (Telegram)",
+    #             "Оценка схожести"
+    #         ]
+    #
+    #         # Форматирование заголовков
+    #         header_font = Font(bold=True)
+    #         header_alignment = Alignment(horizontal='center', vertical='center')
+    #
+    #         for col_num, header in enumerate(headers, 1):
+    #             cell = ws.cell(row=1, column=col_num, value=header)  # Создает ячейку в Excel-листе
+    #             cell.font = header_font                              # Устанавливает жирный шрифт
+    #             cell.alignment = header_alignment                    # Выравнивание по центру
+    #
+    #         for row_num, post in enumerate(similar_posts, 2):
+    #             source, h_title, h_date, t_id, t_date, score, t_len, h_len = post
+    #
+    #             ws.cell(row=row_num, column=1, value=row_num - 1)  # №
+    #             ws.cell(row=row_num, column=2, value=source)  # Платформа
+    #             ws.cell(row=row_num, column=3, value=h_title) # Заголовок Habr
+    #             ws.cell(row=row_num, column=4, value=h_date)  # Дата Habr
+    #             ws.cell(row=row_num, column=5, value=h_len)   # N-грамм Habr
+    #             ws.cell(row=row_num, column=6, value=t_id)    # ID Telegram
+    #             ws.cell(row=row_num, column=7, value=t_date)  # Дата Telegram
+    #             ws.cell(row=row_num, column=8, value=t_len)   # N-грамм Telegram
+    #             ws.cell(row=row_num, column=9, value=score)  # Оценка схожести
+    #
+    #         # Настраиваем ширину столбцов
+    #         column_widths = {
+    #             'A': 5,  # №
+    #             'B': 10,  # Платформа
+    #             'C': 50,  # Заголовок Habr
+    #             'D': 20,  # Дата Habr
+    #             'E': 10,  # N-грамм Habr
+    #             'F': 15,  # ID Telegram
+    #             'H': 20,  # Дата Telegram
+    #             'J': 10,  # N-грамм Telegram
+    #             'I': 15  # Оценка схожести
+    #         }
+    #
+    #         for col, width in column_widths.items():
+    #             ws.column_dimensions[col].width = width
+    #
+    #         # Добавляем дату генерации отчета
+    #         ws.cell(row=ws.max_row + 2, column=1,
+    #                 value=f"Отчет сгенерирован: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    #
+    #         # Сохраняем файл
+    #         wb.save(file_path)
+    #         logger.info("Результаты сохранены в файл: %s", filename)
 
-        DATA_DIR.mkdir(exist_ok=True, parents=True)
-        file_path = DATA_DIR / filename
-
-        try:
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = 'Схожие посты'
-
-            # Заголовки столбцов
-            headers = [
-                "№",
-                "Платформа",
-                "Заголовок (Habr)",
-                "Дата (Habr)",
-                "N-грамм (Habr)",
-                "ID (Telegram)",
-                "Дата (Telegram)",
-                "N-грамм (Telegram)",
-                "Оценка схожести"
-            ]
-
-            # Форматирование заголовков
-            header_font = Font(bold=True)
-            header_alignment = Alignment(horizontal='center', vertical='center')
-
-            for col_num, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col_num, value=header)  # Создает ячейку в Excel-листе
-                cell.font = header_font                              # Устанавливает жирный шрифт
-                cell.alignment = header_alignment                    # Выравнивание по центру
-
-            for row_num, post in enumerate(similar_posts, 2):
-                source, h_title, h_date, t_id, t_date, score, t_len, h_len = post
-
-                ws.cell(row=row_num, column=1, value=row_num - 1)  # №
-                ws.cell(row=row_num, column=2, value=source)  # Платформа
-                ws.cell(row=row_num, column=3, value=h_title) # Заголовок Habr
-                ws.cell(row=row_num, column=4, value=h_date)  # Дата Habr
-                ws.cell(row=row_num, column=5, value=h_len)   # N-грамм Habr
-                ws.cell(row=row_num, column=6, value=t_id)    # ID Telegram
-                ws.cell(row=row_num, column=7, value=t_date)  # Дата Telegram
-                ws.cell(row=row_num, column=8, value=t_len)   # N-грамм Telegram
-                ws.cell(row=row_num, column=9, value=score)  # Оценка схожести
-
-            # Настраиваем ширину столбцов
-            column_widths = {
-                'A': 5,  # №
-                'B': 10,  # Платформа
-                'C': 50,  # Заголовок Habr
-                'D': 20,  # Дата Habr
-                'E': 10,  # N-грамм Habr
-                'F': 15,  # ID Telegram
-                'H': 20,  # Дата Telegram
-                'J': 10,  # N-грамм Telegram
-                'I': 15  # Оценка схожести
-            }
-
-            for col, width in column_widths.items():
-                ws.column_dimensions[col].width = width
-
-            # Добавляем дату генерации отчета
-            ws.cell(row=ws.max_row + 2, column=1,
-                    value=f"Отчет сгенерирован: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-            # Сохраняем файл
-            wb.save(file_path)
-            logger.info("Результаты сохранены в файл: %s", filename)
-
-        except Exception as e:
-            logger.error("Ошибка при сохранении в Excel: %s", str(e))
-            raise
+        # except Exception as e:
+        #     logger.error("Ошибка при сохранении в Excel: %s", str(e))
+        #     raise
 
     @staticmethod
     def save_telegram_to_excel(posts: list[dict], filename: str = "unmatched_telegram.xlsx"):
@@ -208,3 +209,28 @@ class DataStorage:
             ws.column_dimensions[column_cells[0].column_letter].width = adjusted_width
 
         wb.save(file_path)
+
+    @staticmethod
+    def auto_adjust_column_width(ws, df: pd.DataFrame) -> None:
+        for i, column in enumerate(df.columns, 1):
+            max_length = max([len(str(cell)) for cell in df[column].values] + [len(column)])
+            ws.column_dimensions[get_column_letter(i)].width = min(max_length + 2, 100)
+
+    @staticmethod
+    def save_to_excel(matched: list[dict], unmatched: list[dict], matched_path: str = 'matched_posts.xlsx',
+                      unmatched_path: str = 'unmatched_habr.xlsx') -> None:
+        matched_df = pd.DataFrame(matched)
+        unmatched_df = pd.DataFrame(unmatched)
+
+        matched_df['telegram_text'] = matched_df['telegram_text'].str.replace('#', '', regex=False)
+        matched_df['habr_text'] = matched_df['habr_text'].str.replace('#', '', regex=False)
+
+        with pd.ExcelWriter(matched_path, engine='openpyxl') as writer:
+            matched_df.to_excel(writer, index=False, sheet_name='Matched')
+            DataStorage.auto_adjust_column_width(writer.sheets['Matched'], matched_df)
+
+        with pd.ExcelWriter(unmatched_path, engine='openpyxl') as writer:
+            unmatched_df.to_excel(writer, index=False, sheet_name='Unmatched')
+            DataStorage.auto_adjust_column_width(writer.sheets['Unmatched'], unmatched_df)
+        logger.info(f"✅ Сопоставленные пары записаны в {matched_path}")
+        logger.info(f"📄 Несопоставленные хабр-посты записаны в {unmatched_path}")
