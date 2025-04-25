@@ -134,7 +134,9 @@ async def start_habr(username: str = 'DevFM'):
         username: Логин автора на Habr (по умолчанию 'DevFM')
     """
     async with HabrParser(username) as parser:
-        articles = await parser.get_articles()
+        task = asyncio.create_task(parser.get_articles())
+        await asyncio.gather(*task)
+        articles = task.result()
 
         if not articles:
             logger.warning("Не найдено ни одной статьи! Проверьте:")

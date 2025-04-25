@@ -217,20 +217,33 @@ class DataStorage:
             ws.column_dimensions[get_column_letter(i)].width = min(max_length + 2, 100)
 
     @staticmethod
-    def save_to_excel(matched: list[dict], unmatched: list[dict], matched_path: str = 'matched_posts.xlsx',
-                      unmatched_path: str = 'unmatched_habr.xlsx') -> None:
+    def save_to_excel(matched: list[dict],
+                      unmatched_habr: list[dict],
+                      unmatched_telegram: list[dict],
+                      matched_path: str = 'matched_posts.xlsx',
+                      unmatched_habr_path: str = 'unmatched_habr.xlsx',
+                      unmatched_telegram_path: str = 'unmatched_telegram.xlsx'
+
+                      ) -> None:
         matched_df = pd.DataFrame(matched)
-        unmatched_df = pd.DataFrame(unmatched)
+        unmatched_df = pd.DataFrame(unmatched_habr)
+        unmatched_telegram_df = pd.DataFrame(unmatched_telegram)
 
         matched_df['telegram_text'] = matched_df['telegram_text'].str.replace('#', '', regex=False)
         matched_df['habr_text'] = matched_df['habr_text'].str.replace('#', '', regex=False)
+        unmatched_telegram_df['text'] = unmatched_telegram_df['text'].str.replace('#', '', regex=False)
 
         with pd.ExcelWriter(matched_path, engine='openpyxl') as writer:
             matched_df.to_excel(writer, index=False, sheet_name='Matched')
             DataStorage.auto_adjust_column_width(writer.sheets['Matched'], matched_df)
 
-        with pd.ExcelWriter(unmatched_path, engine='openpyxl') as writer:
-            unmatched_df.to_excel(writer, index=False, sheet_name='Unmatched')
-            DataStorage.auto_adjust_column_width(writer.sheets['Unmatched'], unmatched_df)
+        with pd.ExcelWriter(unmatched_habr_path, engine='openpyxl') as writer:
+            unmatched_df.to_excel(writer, index=False, sheet_name='Unmatched_habr')
+            DataStorage.auto_adjust_column_width(writer.sheets['Unmatched_habr'], unmatched_df)
+
+        with pd.ExcelWriter(unmatched_telegram_path, engine='openpyxl') as writer:
+            unmatched_telegram_df.to_excel(writer, index=False, sheet_name='Unmatched_telegram')
+            DataStorage.auto_adjust_column_width(writer.sheets['Unmatched_telegram'], unmatched_telegram_df)
         logger.info(f"✅ Сопоставленные пары записаны в {matched_path}")
-        logger.info(f"📄 Несопоставленные хабр-посты записаны в {unmatched_path}")
+        logger.info(f"📄 Несопоставленные habr-посты записаны в {unmatched_habr_path}")
+        logger.info(f"📄 Несопоставленные telegram-посты записаны в {unmatched_telegram_path}")

@@ -1,10 +1,8 @@
 import re
 import torch
-import pandas as pd
 from logging import DEBUG
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from openpyxl.utils import get_column_letter
 from tqdm import tqdm
 
 from storage import DataStorage
@@ -42,7 +40,7 @@ class PostMatcher:
                  texts, batch_size=16, show_progress_bar=True, ddevice=str(self.device)
              )
 
-    def remove_telegram_duplicates(self, telegram_posts: list[dict], threshold=0.90):
+    def remove_telegram_duplicates(self, telegram_posts: list[dict], threshold=0.90) -> list[dict]:
         logger.info("🧹 Удаление дубликатов из Telegram-постов...")
         filtered_posts = []
         seen = set()
@@ -70,10 +68,12 @@ class PostMatcher:
 
 
     def match_posts(self, habr_posts: list[dict], telegram_posts: list[dict]):
+        logger.info(f"📥 Получено {len(habr_posts)} постов из Habr и {len(telegram_posts)} из Telegram.")
         logger.info("🔍 Сопоставление постов Habr и Telegram...")
 
         matches = []
         unmatched_habr = []
+        unmatched_telegram = []
         used_telegram_ids = set()
 
         habr_embeddings = self.get_embeddings_for_posts(habr_posts, key='content')
@@ -112,8 +112,16 @@ class PostMatcher:
                 logger.debug("-" * 100)
             else:
                 unmatched_habr.append(habr)
+        logger.info(f"✅ Сопоставлено {len(matches)} пар.")
+        logger.info(f"❌ Не найдено пары для {len(unmatched_habr)} habr-постов.")
 
-        return matches, unmatched_habr
+        logger.info("🔍 Поиск постов Telegram, которым не нашлось пары...")
+        for post in tqdm(telegram_posts):
+            if post.get('id') not in used_telegram_ids:
+                unmatched_telegram.append(post)
+        logger.info(f"❌ Не найдено пары для {len(unmatched_telegram)} telegram-постов.")
+
+        return matches, unmatched_habr, unmatched_telegram
 
 def start():
     habr_posts = DataStorage.read_json('habr')
@@ -122,8 +130,8 @@ def start():
 
     matcher = PostMatcher()
     telegram_posts = matcher.remove_telegram_duplicates(telegram_posts)
-    matched, unmatched = matcher.match_posts(habr_posts, telegram_posts)
-    DataStorage.save_to_excel(matched, unmatched)
+    matched, unmatched_habr, unmatched_telegram  = matcher.match_posts(habr_posts, telegram_posts)
+    DataStorage.save_to_excel(matched, unmatched_habr, unmatched_telegram)
 
 if __name__ == '__main__':
     start()
