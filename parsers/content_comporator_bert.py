@@ -15,7 +15,27 @@ VISITED_POSTS_CACHE: dict[str, bool] = {}
 
 
 class PostMatcher:
+    """
+    Класс для сопоставления постов между Habr, Telegram и Pikabu на основе семантического анализа.
+
+    Использует модель Sentence Transformers для получения векторных представлений текстов
+    и вычисляет их косинусную схожесть для нахождения дубликатов и парных постов.
+
+    Attributes:
+        threshold_duplicate (float): Порог схожести для определения дубликатов
+        threshold_match (float): Порог схожести для сопоставления постов
+        device (torch.device): Устройство для вычислений (CPU/GPU)
+        model (SentenceTransformer): Модель для получения эмбеддингов текста
+    """
+
     def __init__(self, threshold_duplicate_: float = 0.9, threshold_match_: float = 0.65):
+        """
+        Инициализирует PostMatcher с заданными параметрами.
+
+        Args:
+            threshold_duplicate_: Порог схожести для дубликатов (по умолчанию 0.9)
+            threshold_match_: Порог схожести для сопоставления (по умолчанию 0.65)
+        """
         self.threshold_duplicate = threshold_duplicate_
         self.threshold_match = threshold_match_
 
@@ -28,24 +48,51 @@ class PostMatcher:
 
     @staticmethod
     def normalize_text(text: str) -> str:
+        """Нормализует текст: заменяет множественные пробелы на один, обрезает
+         и приводит к нижнему регистру."""
         text = re.sub(r'\s+', ' ', text)
         return text.strip().lower()
 
-    def get_embeddings_for_posts(self, posts: list[dict], key: str ='text') -> list[torch.Tensor]:
+    def get_embeddings_for_posts(self, posts: list[dict], key: str = 'text') -> list[torch.Tensor]:
+        """
+        Генерирует векторные представления для текстов постов.
+
+        Args:
+            posts: Список словарей с данными постов
+            key: Ключ для доступа к тексту в словарях
+
+        Returns:
+            Список тензоров с векторными представлениями
+        """
         texts = [self.normalize_text(post[key]) for post in posts]
         with torch.no_grad():
-             return self.model.encode(
-                 texts, batch_size=16, show_progress_bar=True, ddevice=str(self.device)
-             )
+            # Convert numpy array to list of torch tensors
+            embeddings = self.model.encode(
+                texts,
+                batch_size=16,
+                show_progress_bar=True,
+                device=str(self.device)
+            )
+            return [torch.from_numpy(embedding) for embedding in embeddings]
 
     def remove_telegram_duplicates(self, telegram_posts: list[dict], threshold=0.90) -> list[dict]:
+        """
+        Удаляет дубликаты постов Telegram на основе семантической схожести.
+
+        Args:
+            telegram_posts: Список постов для фильтрации
+            threshold: Порог схожести для определения дубликатов
+
+        Returns:
+            Отфильтрованный список уникальных постов
+        """
         logger.info("🧹 Удаление дубликатов из Telegram-постов...")
         filtered_posts = []
         seen = set()
 
         embeddings = self.get_embeddings_for_posts(telegram_posts, key='text')
 
-        for i, post_i in enumerate(tqdm(telegram_posts)):
+        for i, _ in enumerate(tqdm(telegram_posts)):
             if i in seen:
                 continue
             best_j = i
@@ -66,7 +113,22 @@ class PostMatcher:
 
 
     def match_posts(self, habr_posts: list[dict], telegram_posts: list[dict]):
-        logger.info(f"📥 Получено {len(habr_posts)} постов из Habr и {len(telegram_posts)} из Telegram.")
+        """
+        Сопоставляет посты Habr и Telegram по семантической схожести контента.
+
+        Args:
+            habr_posts: Список постов с Habr
+            telegram_posts: Список постов из Telegram
+
+        Returns:
+            Кортеж из:
+            - Списка найденных пар
+            - Несопоставленных постов Habr
+            - Несопоставленных постов Telegram
+        """
+        logger.info("📥 Получено %s постов из Habr и %s из Telegram.",
+                    len(habr_posts), len(telegram_posts)
+                    )
         logger.info("🔍 Сопоставление постов Habr и Telegram...")
 
         matches = []
@@ -103,27 +165,33 @@ class PostMatcher:
                 })
                 used_telegram_ids.add(best_match['id'])
 
-                logger.debug(f"# Найдена пара #:")
+                logger.debug("# Найдена пара #:")
                 logger.debug("Habr:  %s:  %s ", habr['title'], habr['date'])
-                logger.debug(f"Telegram (ID: %s),: %s", best_match['id'],  best_match['date'])
-                logger.debug(f"Оценка схожести: %s", {best_score:.2})
+                logger.debug("Telegram (ID: %s),: %s", best_match['id'],  best_match['date'])
+                logger.debug("Оценка схожести: %s", {best_score:.2})
                 logger.debug("-" * 100)
             else:
                 unmatched_habr.append(habr)
-        logger.info(f"✅ Сопоставлено {len(matches)} пар.")
-        logger.info(f"❌ Не найдено пары для {len(unmatched_habr)} habr-постов.")
+        logger.info("✅ Сопоставлено %s пар.", len(matches))
+        logger.info("❌ Не найдено пары для %s habr-постов.", len(unmatched_habr))
 
         logger.info("🔍 Поиск постов Telegram, которым не нашлось пары...")
         for post in tqdm(telegram_posts):
             if post.get('id') not in used_telegram_ids:
                 unmatched_telegram.append(post)
-        logger.info(f"❌ Не найдено пары для {len(unmatched_telegram)} telegram-постов.")
+        logger.info("❌ Не найдено пары для %s telegram-постов.", len(unmatched_telegram))
 
         return matches, unmatched_habr, unmatched_telegram
 
-def start():
-    habr_posts = DataStorage.read_json('habr')
 
+def start():
+    """
+    Основная функция для обработки и сопоставления постов Habr и Telegram.
+
+    Читает посты из JSON-файлов, удаляет дубликаты в Telegram-постах,
+    сопоставляет посты между платформами и сохраняет результаты в Excel.
+    """
+    habr_posts = DataStorage.read_json('habr')
     telegram_posts = DataStorage.read_json('telegram')
 
     matcher = PostMatcher()
