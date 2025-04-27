@@ -33,7 +33,6 @@ class HabrParser:
         """Проверяет, является ли статья дубликатом"""
         content_hash = self._get_content_hash(content)
         if content_hash in self.unique_hashes:
-            self.logger.warning(f"Найден дубликат статьи")
             return True
         self.unique_hashes.add(content_hash)
         return False
@@ -66,7 +65,7 @@ class HabrParser:
                     self.logger.error("Ошибка HTTP: %d", response.status)
                     return None
 
-                self.logger.info("Страница %d: статус %d", page, response.status)
+                self.logger.debug("Страница %d: статус %d", page, response.status)
                 return await response.text()
         except Exception as e:
             self.logger.error("Ошибка при загрузке страницы %d: %s", page, str(e))
@@ -104,7 +103,6 @@ class HabrParser:
                 self.logger.info("Найдена статья: %s", title_tag.text.strip())
             except Exception as e:
                 logger.error("Ошибка обработки статьи: %s", str(e))
-                logger.debug("Проблемная статья:\n%.300s...", post.prettify())
                 continue
         return articles
 
@@ -136,7 +134,9 @@ async def start_habr(username: str = 'DevFM'):
         username: Логин автора на Habr (по умолчанию 'DevFM')
     """
     async with HabrParser(username) as parser:
-        articles = await parser.get_articles()
+        task = asyncio.create_task(parser.get_articles())
+        await asyncio.gather(*task)
+        articles = task.result()
 
         if not articles:
             logger.warning("Не найдено ни одной статьи! Проверьте:")

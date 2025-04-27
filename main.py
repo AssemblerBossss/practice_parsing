@@ -1,6 +1,7 @@
 import asyncio
 from parsers.src import *
 from parsers.content_comparator import comporator_start
+from parsers.content_comporator_bert import start
 
 
 async def main():
@@ -18,7 +19,9 @@ async def main():
     await parser.run(post_limit=600)
 
     # Запуск сравнения
-    comporator_start()
+    #comporator_start()
+    start()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
