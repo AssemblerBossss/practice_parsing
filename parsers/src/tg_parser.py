@@ -1,7 +1,5 @@
 import asyncio
 import os
-import re
-
 from dotenv import load_dotenv
 from telethon.sync import TelegramClient                      # Основной клиент для работы(синхронный)
 from telethon.tl.functions.messages import GetHistoryRequest  # Получение истории сообщений из чата
@@ -105,7 +103,7 @@ class TelegramChannelParser:
             offset_id = messages[-1].id
 
             # Небольшая задержка чтобы не нагружать сервер
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
     def _process_messages(self, messages):
         """Обработка и сохранение сообщений с улучшенным извлечением заголовков"""

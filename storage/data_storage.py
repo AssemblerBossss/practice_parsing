@@ -1,12 +1,15 @@
 import json
 import openpyxl
+import pandas as pd
+from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font, Alignment
+from openpyxl.utils import get_column_letter
 from typing import Literal
 from datetime import datetime
 from loggers import setup_logger
 from storage.storage_config import (DATA_DIR, ALLOWED_FILES)
 
-logger = setup_logger("saving_logger")
+logger = setup_logger("saving_logger", log_file="saving.log")
 
 
 class DataStorage:
@@ -40,7 +43,7 @@ class DataStorage:
         try:
             with open(file_path , 'w', encoding='utf-8') as f:
                 json.dump(output_data, f, ensure_ascii=False, indent=4)
-            logger.info("Saved %d posts to %s", len(posts), file_path)
+            logger.info("Saved %d posts to %s", len(posts), filename)
             return True
         except Exception as e:
             logger.error("Failed to save posts: %s", str(e))
@@ -69,7 +72,7 @@ class DataStorage:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f).get('posts', [])
-            logger.info("Successfully read data from %s", file_path)
+            logger.info("Successfully read data from %s", file_name)
             return data
         except FileNotFoundError:
             logger.error("File not found: %s", file_path)
@@ -82,80 +85,69 @@ class DataStorage:
             return None
 
     @staticmethod
-    def save_to_excel(similar_posts: list, filename: str = 'similar_posts.xlsx') -> bool:
+    def auto_adjust_column_width(ws, df: pd.DataFrame) -> None:
+        for i, column in enumerate(df.columns, 1):
+            max_length = max([len(str(cell)) for cell in df[column].values] + [len(column)])
+            ws.column_dimensions[get_column_letter(i)].width = min(max_length + 2, 100)
+
+    @staticmethod
+    def save_to_excel(matched: list[dict],
+                      unmatched_habr: list[dict],
+                      unmatched_telegram: list[dict],
+                      matched_path: str = 'matched_posts.xlsx',
+                      unmatched_habr_path: str = 'unmatched_habr.xlsx',
+                      unmatched_telegram_path: str = 'unmatched_telegram.xlsx'
+
+                      ) -> None:
         """
-        Сохраняет посты в XLSX файл.
+        Сохраняет результаты сопоставления постов в отдельные Excel-файлы.
+
+        Создаёт три файла:
+        - matched_path: файл с сопоставленными парами Habr и Telegram постов.
+        - unmatched_habr_path: файл с Habr-постами, которым не нашлось пары.
+        - unmatched_telegram_path: файл с Telegram-постами, которым не нашлось пары.
+
+        Также очищает тексты от символа '#' и автоматически подбирает ширину колонок в таблицах.
+
         Args:
-            similar_posts: Данные для сохранения
-            filename: Имя файла (без расширения)
+            matched (list[dict]): Список словарей с совпавшими постами.
+            unmatched_habr (list[dict]): Список словарей с Habr-постами без пары.
+            unmatched_telegram (list[dict]): Список словарей с Telegram-постами без пары.
+            matched_path (str): Имя файла для сохранения совпавших пар.
+            unmatched_habr_path (str): Имя файла для несопоставленных Habr-постов.
+            unmatched_telegram_path (str): Имя файла для несопоставленных Telegram-постов.
+
+        Returns:
+            None
         """
 
-        file_path = DATA_DIR / filename
 
-        try:
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = 'Схожие посты'
+        DATA_DIR.mkdir(exist_ok=True, parents=True)
 
-            # Заголовки столбцов
-            headers = [
-                "№",
-                "Платформа",
-                "Заголовок (Habr)",
-                "Дата (Habr)",
-                "N-грамм (Habr)",
-                "ID (Telegram)",
-                "Дата (Telegram)",
-                "N-грамм (Telegram)",
-                "Оценка схожести"
-            ]
+        matched_path = DATA_DIR / matched_path
+        unmatched_habr_path = DATA_DIR / unmatched_habr_path
+        unmatched_telegram_path = DATA_DIR / unmatched_telegram_path
 
-            # Форматирование заголовков
-            header_font = Font(bold=True)
-            header_alignment = Alignment(horizontal='center', vertical='center')
+        matched_df = pd.DataFrame(matched)
+        unmatched_df = pd.DataFrame(unmatched_habr)
+        unmatched_telegram_df = pd.DataFrame(unmatched_telegram)
 
-            for col_num, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col_num, value=header)  # Создает ячейку в Excel-листе
-                cell.font = header_font                              # Устанавливает жирный шрифт
-                cell.alignment = header_alignment                    # Выравнивание по центру
+        matched_df['telegram_text'] = matched_df['telegram_text'].str.replace('#', '', regex=False)
+        matched_df['habr_text'] = matched_df['habr_text'].str.replace('#', '', regex=False)
+        unmatched_telegram_df['text'] = unmatched_telegram_df['text'].str.replace('#', '', regex=False)
 
-            for row_num, post in enumerate(similar_posts, 2):
-                source, h_title, h_date, t_id, t_date, score, t_len, h_len = post
+        with pd.ExcelWriter(matched_path, engine='openpyxl') as writer:
+            matched_df.to_excel(writer, index=False, sheet_name='Matched')
+            DataStorage.auto_adjust_column_width(writer.sheets['Matched'], matched_df)
 
-                ws.cell(row=row_num, column=1, value=row_num - 1)  # №
-                ws.cell(row=row_num, column=2, value=source)  # Платформа
-                ws.cell(row=row_num, column=3, value=h_title) # Заголовок Habr
-                ws.cell(row=row_num, column=4, value=h_date)  # Дата Habr
-                ws.cell(row=row_num, column=5, value=h_len)   # N-грамм Habr
-                ws.cell(row=row_num, column=6, value=t_id)    # ID Telegram
-                ws.cell(row=row_num, column=7, value=t_date)  # Дата Telegram
-                ws.cell(row=row_num, column=8, value=t_len)   # N-грамм Telegram
-                ws.cell(row=row_num, column=9, value=score)  # Оценка схожести
+        with pd.ExcelWriter(unmatched_habr_path, engine='openpyxl') as writer:
+            unmatched_df.to_excel(writer, index=False, sheet_name='Unmatched_habr')
+            DataStorage.auto_adjust_column_width(writer.sheets['Unmatched_habr'], unmatched_df)
 
-            # Настраиваем ширину столбцов
-            column_widths = {
-                'A': 5,  # №
-                'B': 10,  # Платформа
-                'C': 50,  # Заголовок Habr
-                'D': 20,  # Дата Habr
-                'E': 10,  # N-грамм Habr
-                'F': 15,  # ID Telegram
-                'H': 20,  # Дата Telegram
-                'J': 10,  # N-грамм Telegram
-                'I': 15  # Оценка схожести
-            }
+        with pd.ExcelWriter(unmatched_telegram_path, engine='openpyxl') as writer:
+            unmatched_telegram_df.to_excel(writer, index=False, sheet_name='Unmatched_telegram')
+            DataStorage.auto_adjust_column_width(writer.sheets['Unmatched_telegram'], unmatched_telegram_df)
 
-            for col, width in column_widths.items():
-                ws.column_dimensions[col].width = width
-
-            # Добавляем дату генерации отчета
-            ws.cell(row=ws.max_row + 2, column=1,
-                    value=f"Отчет сгенерирован: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-            # Сохраняем файл
-            wb.save(file_path)
-            logger.info("Результаты сохранены в файл: %s", filename)
-
-        except Exception as e:
-            logger.error("Ошибка при сохранении в Excel: %s", str(e))
-            raise
+        logger.info(f"✅ Сопоставленные пары записаны в {matched_path}")
+        logger.info(f"📄 Несопоставленные habr-посты записаны в {unmatched_habr_path}")
+        logger.info(f"📄 Несопоставленные telegram-посты записаны в {unmatched_telegram_path}")
