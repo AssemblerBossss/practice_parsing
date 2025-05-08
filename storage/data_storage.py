@@ -86,6 +86,32 @@ class DataStorage:
             return None
 
     @staticmethod
+    def extract_channel_url(source: Literal['habr', 'pikabu', 'telegram']) -> str | None:
+        """
+        Извлекает значение 'channel_url' из блока 'metadata' JSON-файла.
+
+        :param source: Путь к JSON-файлу
+        :return: Ссылка на канал или None, если не найдена
+        """
+
+        if source not in ALLOWED_FILES:
+            logger.error("Недопустимый источник: %s. Допустимые: %s",
+                         source, list(ALLOWED_FILES.keys()))
+            raise ValueError(f"Invalid source. Allowed: {list(ALLOWED_FILES.keys())}")
+
+        file_name = ALLOWED_FILES[source]
+        file_path = DATA_DIR / file_name
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                data = json.load(file)
+                metadata = data.get("metadata", {})
+                return metadata.get("channel_url")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Ошибка при чтении JSON: {e}")
+            return None
+
+    @staticmethod
     def auto_adjust_column_width(ws, df: pd.DataFrame) -> None:
         for i, column in enumerate(df.columns, 1):
             max_length = max([len(str(cell)) for cell in df[column].values] + [len(column)])

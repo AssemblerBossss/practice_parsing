@@ -26,7 +26,7 @@ class HabrParser:
         }
 
     @staticmethod
-    def _get_content_hash(self, content: str) -> str:
+    def _get_content_hash(content: str) -> str:
         """
         Генерирует MD5 хеш контента статьи
         :param content: Текст статьи
@@ -91,7 +91,7 @@ class HabrParser:
                 title_tag = post.find('strong') if post.find('strong') else None
                 time_tag = post.find('time') or post.find('span', class_='tm-publication-date')
 
-                content = ' '.join(p.get_text(separator='\n') for p in post.find_all('p'))
+                content = "\n".join(p.get_text(separator=' ') for p in post.find_all('p'))
 
                 if not title_tag or not time_tag:
                     self.logger.warning("Не найдены обязательные теги в статье")
@@ -142,7 +142,7 @@ async def start_habr(username: str = 'DevFM'):
     """
     async with HabrParser(username) as parser:
         task = asyncio.create_task(parser.get_articles())
-        await asyncio.gather(*task)
+        await asyncio.gather(task)
         articles = task.result()
 
         if not articles:
