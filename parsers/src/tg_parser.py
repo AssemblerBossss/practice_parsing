@@ -121,7 +121,7 @@ class TelegramChannelParser:
 
             post = TelegramPostModel(
                 id=message.id,
-                date=message.date.isoformat(),
+                date=str(message.date.date()),
                 text=text,
                 views=getattr(message, 'views', None),
                 media=bool(message.media),

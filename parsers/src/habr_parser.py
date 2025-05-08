@@ -101,10 +101,14 @@ class HabrParser:
                 if self._is_duplicate(content):
                     self.logger.warning(f"Найден дубликат статьи: {title_tag.text.strip()}")
                     continue
+                from dateutil.parser import parse
+
+                date = str(parse(time_tag['datetime']).date()) if 'datetime' in time_tag.attrs else str(
+                    parse(time_tag.text.strip()).date())
 
                 article = HabrPostModel(
                     title=title_tag.text.strip(),
-                    date=time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
+                    date=date,
                     content=content
                 )
                 articles.append(article)
