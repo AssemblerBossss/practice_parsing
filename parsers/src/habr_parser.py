@@ -2,21 +2,21 @@ import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
-from typing import Optional, List, Dict
+from typing import Optional, List
 from hashlib import md5
 
 from loggers import setup_logger, DEFAULT_HABR_LOG_FILE
 from storage import DataStorage
 from storage.data_storage import logger
-from models import HabrPost
+from models import HabrPostModel
 
 
 class HabrParser:
     def __init__(self, username: str, max_pages: int = 2):
-        self.username = username
-        self.max_pages = max_pages
+        self.username: str = username
+        self.max_pages: int = max_pages
         self.base_url = "https://habr.com"
-        self.articles = []
+        self.articles: list[HabrPostModel] = []
         self.ua = UserAgent()
         self.unique_hashes = set()
         self.logger = setup_logger('habr_logger', log_file=DEFAULT_HABR_LOG_FILE)
@@ -79,9 +79,9 @@ class HabrParser:
             self.logger.error("Ошибка при загрузке страницы %d: %s", page, str(e))
             return None
 
-    def parse_page(self, html: str) -> List[Dict[str, str]]:
+    def parse_page(self, html: str) -> List[HabrPostModel]:
         """Извлекает данные статей из HTML.
-        Возвращает список словарей с title, date и content.
+        Возвращает список HabrPostModel.
         Продолжает работу при ошибках парсинга отдельных статей."""
 
         soup = BeautifulSoup(html, 'lxml')
@@ -102,7 +102,7 @@ class HabrParser:
                     self.logger.warning(f"Найден дубликат статьи: {title_tag.text.strip()}")
                     continue
 
-                article = HabrPost(
+                article = HabrPostModel(
                     title=title_tag.text.strip(),
                     date=time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
                     content=content
@@ -115,7 +115,7 @@ class HabrParser:
                 continue
         return articles
 
-    async def get_articles(self) -> List[Dict[str, str]]:
+    async def get_articles(self) -> List[HabrPostModel]:
         """Загружает статьи со всех страниц параллельно"""
         tasks = [self.fetch_page(page) for page in range(1, self.max_pages + 1)]
         html_pages = await asyncio.gather(*tasks)
@@ -130,7 +130,7 @@ class HabrParser:
                 continue
 
             self.articles.extend(articles)
-            DataStorage.save_as_json(self.articles, 'habr', channel_url="")
+            #DataStorage.save_as_json(self.articles, 'habr', channel_url="")
 
         return self.articles
 

@@ -3,7 +3,7 @@ from typing import Optional
 
 
 @dataclass
-class TelegramPost:
+class TelegramPostModel:
     """
     Класс, представляющий пост из Telegram-канала.
     """
@@ -17,7 +17,7 @@ class TelegramPost:
 
 
 @dataclass
-class HabrPost:
+class HabrPostModel:
     """
     Класс, представляющий статью на платформе Habr.
     """

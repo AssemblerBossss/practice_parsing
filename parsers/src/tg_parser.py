@@ -6,6 +6,7 @@ from telethon.tl.functions.messages import GetHistoryRequest  # Получени
 from telethon.tl.types import Channel                         # Тип, представляющий тг-канал
 from loggers import setup_logger, DEFAULT_TELEGRAM_LOG_FILE
 from storage import DataStorage
+from models import TelegramPostModel
 
 logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
 
@@ -27,9 +28,9 @@ class TelegramChannelParser:
                                      api_id=int(self.api_id),
                                      api_hash=self.api_hash
                                      )
-        self.channel = None  # Будет содержать объект канала после подключения
-        self.posts = []      # Здесь будут храниться полученные посты
-        self.channel_url: str = None # Будет содержать ссылку на канал
+        self.channel = None                       # Будет содержать объект канала после подключения
+        self.posts: list[TelegramPostModel] = []  # Здесь будут храниться полученные посты
+        self.channel_url: str = ''                # Будет содержать ссылку на канал
 
     def _load_env_vars(self):
         """Загрузка переменных окружения из .env файла"""
@@ -118,15 +119,16 @@ class TelegramChannelParser:
             # Безопасное получение текста
             text = message.message or ""
 
-            post_data = {
-                'id': message.id,
-                'date': message.date.isoformat(),
-                'text': text if text else "",  # Гарантируем строку вместо null
-                'views': getattr(message, 'views', None),
-                'media': bool(message.media),
-                'is_forward': bool(message.fwd_from)
-            }
-            self.posts.append(post_data)
+            post = TelegramPostModel(
+                id=message.id,
+                date=message.date.isoformat(),
+                text=text,
+                views=getattr(message, 'views', None),
+                media=bool(message.media),
+                is_forward=bool(message.fwd_from),
+                post_url=f"{self.channel_url}/{message.id}"
+            )
+            self.posts.append(post)
 
     def save_to_json(self):
         """Сохранение в json"""
@@ -137,7 +139,7 @@ class TelegramChannelParser:
         async with self.client:
             await self.connect_to_channel()
             await self.get_posts(total_limit=post_limit)
-            self.save_to_json()
+            #self.save_to_json()
 
 
 # Пример использования

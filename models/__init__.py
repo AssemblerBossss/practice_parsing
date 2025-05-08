@@ -1,6 +1,6 @@
-from .post_models import HabrPost, TelegramPost
+from .post_models import HabrPostModel, TelegramPostModel
 
 __all__ = [
-    'HabrPost',
-    'TelegramPost'
+    'HabrPostModel',
+    'TelegramPostModel'
 ]
