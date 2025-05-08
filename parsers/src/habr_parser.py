@@ -8,6 +8,7 @@ from hashlib import md5
 from loggers import setup_logger, DEFAULT_HABR_LOG_FILE
 from storage import DataStorage
 from storage.data_storage import logger
+from models import HabrPost
 
 
 class HabrParser:
@@ -101,13 +102,14 @@ class HabrParser:
                     self.logger.warning(f"Найден дубликат статьи: {title_tag.text.strip()}")
                     continue
 
-                articles.append({
-                    'title': title_tag.text.strip(),
-                    'date': time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
-                    'content': content,
-                })
+                article = HabrPost(
+                    title=title_tag.text.strip(),
+                    date=time_tag['datetime'] if 'datetime' in time_tag.attrs else time_tag.text.strip(),
+                    content=content
+                )
+                articles.append(article)
 
-                self.logger.info("Найдена статья: %s", title_tag.text.strip())
+                self.logger.info("Найдена статья: %s", article.title)
             except Exception as e:
                 logger.error("Ошибка обработки статьи: %s", str(e))
                 continue
