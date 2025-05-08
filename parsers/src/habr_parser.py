@@ -25,6 +25,7 @@ class HabrParser:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         }
 
+    @staticmethod
     def _get_content_hash(self, content: str) -> str:
         """Генерирует MD5 хеш контента статьи"""
         return md5(content.strip().encode("utf-8")).hexdigest()
@@ -71,7 +72,7 @@ class HabrParser:
             self.logger.error("Ошибка при загрузке страницы %d: %s", page, str(e))
             return None
 
-    async def parse_page(self, html: str) -> List[Dict[str, str]]:
+    def parse_page(self, html: str) -> List[Dict[str, str]]:
         """Извлекает данные статей из HTML.
         Возвращает список словарей с title, date и content.
         Продолжает работу при ошибках парсинга отдельных статей."""
@@ -84,7 +85,7 @@ class HabrParser:
                 title_tag = post.find('strong') if post.find('strong') else None
                 time_tag = post.find('time') or post.find('span', class_='tm-publication-date')
 
-                content = ' '.join(p.get_text(separator=" ") for p in post.find_all('p'))
+                content = ' '.join(p.get_text(separator='\n') for p in post.find_all('p'))
 
                 if not title_tag or not time_tag:
                     self.logger.warning("Не найдены обязательные теги в статье")
@@ -115,7 +116,7 @@ class HabrParser:
             if not html:
                 continue
 
-            articles = await self.parse_page(html)
+            articles = self.parse_page(html)
             if not articles:
                 self.logger.warning("Не найдено статей на странице %d", page)
                 continue

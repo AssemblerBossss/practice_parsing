@@ -15,7 +15,7 @@ class TelegramChannelParser:
     def __init__(self, channel_name: str):
         """
         Инициализирует парсер канала Telegram.
-        Args: channel_username (str): Название канала
+        :param channel_name (str): Название канала
         """
 
         self._load_env_vars()         # Загрузка переменных окружения
@@ -29,6 +29,7 @@ class TelegramChannelParser:
                                      )
         self.channel = None  # Будет содержать объект канала после подключения
         self.posts = []      # Здесь будут храниться полученные посты
+        self.channel_url: str = None # Будет содержать ссылку на канал
 
     def _load_env_vars(self):
         """Загрузка переменных окружения из .env файла"""
@@ -62,6 +63,12 @@ class TelegramChannelParser:
         if not isinstance(self.channel, Channel):
             logger.error('Нет канала с таким именем')
             raise TypeError('Channel must be Channel')
+
+        if getattr(self.channel, 'username', None):
+            self.channel_url = f"https://t.me/{self.channel.username}"
+        else:
+            # Приватный канал или приглашение
+            self.channel_url = f"https://t.me/c/{self.channel.id}"
 
     async def get_posts(self, limit: int = 50, total_limit: int = 0):
         """
@@ -123,7 +130,7 @@ class TelegramChannelParser:
 
     def save_to_json(self):
         """Сохранение в json"""
-        DataStorage.save_as_json(self.posts, 'telegram')
+        DataStorage.save_as_json(self.posts, 'telegram', channel_url=self.channel_url)
 
     async def run(self, post_limit: int = 500):
         """Основной метод для запуска парсера"""

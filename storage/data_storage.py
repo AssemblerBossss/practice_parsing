@@ -14,7 +14,7 @@ logger = setup_logger("saving_logger", log_file="saving.log")
 
 class DataStorage:
     @staticmethod
-    def save_as_json(posts, filename: Literal['habr', 'pikabu', 'telegram']) -> bool:
+    def save_as_json(posts: list, filename: Literal['habr', 'pikabu', 'telegram'], channel_url: str = None) -> bool:
         """
         Сохраняет посты в JSON файл.
         Args:
@@ -35,7 +35,8 @@ class DataStorage:
         output_data = {
             'metadata': {
                 'generated_at' : datetime.now().isoformat(),
-                "posts_count": len(posts)
+                "posts_count": len(posts),
+                "channel_url": channel_url
             },
             'posts': posts
         }
