@@ -9,7 +9,7 @@ class TelegramPostModel:
     """
     id: int                 # Уникальный идентификатор поста.
     date: str               # Дата публикации
-    text: str               # Текст поста
+    content: str            # Текст поста
     views: Optional[int]    # Количество просмотров сообщения
     media: bool             # Признак наличия вложенных медиафайлов
     is_forward: bool        # Признак, является ли сообщение пересланным

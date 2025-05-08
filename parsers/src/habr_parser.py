@@ -154,23 +154,24 @@ class HabrParser:
 
         return self.articles
 
+    async def start(self):
+        """
+        Метод запуска парсинга статей Habr с инициализацией сессии.
+        """
+        async with self:
+            task = asyncio.create_task(self.get_articles())
+            await asyncio.gather(task)
+            articles = task.result()
 
-async def start_habr(username: str = 'DevFM'):
-    """
-    Основная точка входа для запуска парсинга статей Habr.
+            if not articles:
+                self.logger.warning("Не найдено ни одной статьи! Проверьте:")
+            else:
+                self.logger.info("Найдено статей: %d", len(articles))
 
-    :param username: Имя пользователя на Habr
-    """
-    async with HabrParser(username) as parser:
-        task = asyncio.create_task(parser.get_articles())
-        await asyncio.gather(task)
-        articles = task.result()
+            return articles
 
-        if not articles:
-            logger.warning("Не найдено ни одной статьи! Проверьте:")
-        else:
-            logger.info("Найдено статей: %d", len(articles))
 
 
 if __name__ == "__main__":
-    asyncio.run(start_habr())
+    parser = HabrParser("DevFM", 2)
+    asyncio.run(parser.start())

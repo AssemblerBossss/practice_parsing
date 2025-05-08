@@ -1,9 +1,8 @@
-from .habr_parser import HabrParser, start_habr
+from .habr_parser import HabrParser
 from .tg_parser import TelegramChannelParser
 
 
 __all__ = [
     'HabrParser',
-    'start_habr',
     'TelegramChannelParser'
 ]

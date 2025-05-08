@@ -13,12 +13,18 @@ async def main():
     telegram_name = input(f"Введите название канала в Telegram [{DEFAULT_TG_CHANNEL}]: ") or DEFAULT_TG_CHANNEL
 
     # Запуск парсеров
-    await start_habr(habr_name)
-    parser = TelegramChannelParser(telegram_name)
-    await parser.run(post_limit=600)
+
+    parser_habr = HabrParser(habr_name)
+    habr_posts = await parser_habr.start()
+
+
+    parser_tg = TelegramChannelParser(telegram_name)
+    await parser_tg.run(post_limit=100)
+    telegram_posts = parser_tg.get_posts()
+
 
     # Запуск сравнения
-    start()
+    start(telegram_posts, habr_posts)
 
 
 if __name__ == "__main__":

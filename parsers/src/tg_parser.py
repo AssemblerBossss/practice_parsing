@@ -71,7 +71,7 @@ class TelegramChannelParser:
         """
         Подключается к Telegram-каналу по имени и сохраняет его объект.
 
-        :raises TypeError: если указанный объект не является каналом
+        :raises TypeError: Если указанный объект не является каналом
         """
         self.channel = await self.client.get_entity(self.channel_name)
 
@@ -85,7 +85,7 @@ class TelegramChannelParser:
             # Приватный канал или приглашение
             self.channel_url = f"https://t.me/c/{self.channel.id}"
 
-    async def get_posts(self, limit: int = 50, total_limit: int = 0):
+    async def get_posts_from_channel(self, limit: int = 50, total_limit: int = 0):
         """
         Получает список сообщений из канала.
 
@@ -136,12 +136,12 @@ class TelegramChannelParser:
         """
         for message in messages:
             # Безопасное получение текста
-            text = message.message or ""
+            content = message.message or ""
 
             post = TelegramPostModel(
                 id=message.id,
                 date=str(message.date.date()),
-                text=text,
+                content=content,
                 views=getattr(message, 'views', None),
                 media=bool(message.media),
                 is_forward=bool(message.fwd_from),
@@ -155,11 +155,14 @@ class TelegramChannelParser:
         """
         DataStorage.save_as_json(self.posts, 'telegram', channel_url=self.channel_url)
 
+    def get_posts(self) -> list[TelegramPostModel]:
+        return self.posts
+
     async def run(self, post_limit: int = 500):
         """Основной метод для запуска парсера"""
         async with self.client:
             await self.connect_to_channel()
-            await self.get_posts(total_limit=post_limit)
+            await self.get_posts_from_channel(total_limit=post_limit)
             #self.save_to_json()
 
 

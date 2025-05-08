@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from storage import DataStorage
 from loggers import setup_logger
+from models import HabrPostModel, TelegramPostModel
 
 logger = setup_logger(__name__, log_file="content_comporator_bert.log", log_level=DEBUG)
 
@@ -53,20 +54,17 @@ class PostMatcher:
         text = re.sub(r'\s+', ' ', text)
         return text.strip().lower()
 
-    def get_embeddings_for_posts(self, posts: list[dict], key: str = 'text') -> list[torch.Tensor]:
+    def get_embeddings_for_posts(self, posts: list, key: str = 'text') -> list[torch.Tensor]:
         """
-        Генерирует векторные представления для текстов постов.
+        Генерирует векторные представления для списка постов.
 
-        Args:
-            posts: Список словарей с данными постов
-            key: Ключ для доступа к тексту в словарях
-
-        Returns:
-            Список тензоров с векторными представлениями
+        :param posts: Список объектов HabrPostModel или TelegramPostModel
+        :param key: Ключ, указывающий на поле с текстом (например, 'content' для Habr и 'text' для Telegram)
+        :return: Список эмбеддингов
         """
-        texts = [self.normalize_text(post[key]) for post in posts]
+
+        texts = [self.normalize_text(post.content) for post in posts]
         with torch.no_grad():
-            # Convert numpy array to list of torch tensors
             embeddings = self.model.encode(
                 texts,
                 batch_size=16,
@@ -75,16 +73,13 @@ class PostMatcher:
             )
             return [torch.from_numpy(embedding) for embedding in embeddings]
 
-    def remove_telegram_duplicates(self, telegram_posts: list[dict], threshold=0.90) -> list[dict]:
+    def remove_telegram_duplicates(self, telegram_posts: list[TelegramPostModel], threshold=0.90) -> list[TelegramPostModel]:
         """
         Удаляет дубликаты постов Telegram на основе семантической схожести.
 
-        Args:
-            telegram_posts: Список постов для фильтрации
-            threshold: Порог схожести для определения дубликатов
-
-        Returns:
-            Отфильтрованный список уникальных постов
+        :param telegram_posts: Список постов для фильтрации
+        :param threshold: Порог схожести для определения дубликатов
+        :return: Отфильтрованный список уникальных постов
         """
         logger.info("🧹 Удаление дубликатов из Telegram-постов...")
         filtered_posts = []
@@ -101,8 +96,8 @@ class PostMatcher:
                     continue
                 sim = cosine_similarity([embeddings[i]], [embeddings[j]])[0][0]
                 if sim > threshold:
-                    views_j = telegram_posts[j].get('views') or 0
-                    views_best = telegram_posts[best_j].get('views') or 0
+                    views_j = telegram_posts[j].views or 0
+                    views_best = telegram_posts[best_j].views or 0
                     best_j = j if views_j > views_best else best_j
                     seen.add(j)
 
@@ -111,30 +106,28 @@ class PostMatcher:
 
         return filtered_posts
 
-
-    def match_posts(self, habr_posts: list[dict], telegram_posts: list[dict]):
+    def match_posts(self, habr_posts: list[HabrPostModel], telegram_posts: list[TelegramPostModel]):
         """
-        Сопоставляет посты Habr и Telegram по семантической схожести контента.
+        Сопоставляет посты между платформами Habr и Telegram на основе их семантической схожести.
 
-        Args:
-            habr_posts: Список постов с Habr
-            telegram_posts: Список постов из Telegram
+        Использует векторные представления контента постов и рассчитывает косинусное сходство для нахождения пар постов.
 
-        Returns:
-            Кортеж из:
-            - Списка найденных пар
-            - Несопоставленных постов Habr
-            - Несопоставленных постов Telegram
+        :param habr_posts: Список объектов HabrPostModel
+        :param telegram_posts: Список объектов TelegramPostModel
+        :return: Кортеж из:
+            - Списка найденных пар (со всеми данными о постах)
+            - Списка несопоставленных постов с платформы Habr
+            - Списка несопоставленных постов с платформы Telegram
         """
         logger.info("📥 Получено %s постов из Habr и %s из Telegram.",
                     len(habr_posts), len(telegram_posts)
                     )
         logger.info("🔍 Сопоставление постов Habr и Telegram...")
 
-        matches = []
-        unmatched_habr = []
-        unmatched_telegram = []
-        used_telegram_ids = set()
+        matches = []  # Список для хранения найденных пар
+        unmatched_habr = []  # Список для несопоставленных постов Habr
+        unmatched_telegram = []  # Список для несопоставленных постов Telegram
+        used_telegram_ids = set()  # Множество использованных идентификаторов постов Telegram
 
         habr_embeddings = self.get_embeddings_for_posts(habr_posts, key='content')
         telegram_embeddings = self.get_embeddings_for_posts(telegram_posts, key='text')
@@ -145,7 +138,7 @@ class PostMatcher:
             best_score = 0
 
             for j, tele in enumerate(telegram_posts):
-                if tele['id'] in used_telegram_ids:
+                if tele.id in used_telegram_ids:
                     continue
 
                 score = cosine_similarity([habr_embeddings[i]], [telegram_embeddings[j]])[0][0]
@@ -156,20 +149,20 @@ class PostMatcher:
             if best_score >= self.threshold_match:
                 best_match = telegram_posts[best_match_idx]
                 matches.append({
-                    "habr_title": habr['title'],
-                    "habr_date": habr['date'],
-                    "telegram_id": f"{telegram_channel_url}/{best_match['id']}",
-                    "telegram_date": best_match['date'],
+                    "habr_title": habr.title,
+                    "habr_date": habr.date,
+                    "telegram_id": best_match.post_url,
+                    "telegram_date": best_match.date,
                     "similarity": best_score,
-                    "habr_text": habr['content'],
-                    "telegram_text": best_match['text']
+                    "habr_content": habr.content,
+                    "telegram_content": best_match.content
                 })
-                used_telegram_ids.add(best_match['id'])
+                used_telegram_ids.add(best_match.id)
 
                 logger.debug("# Найдена пара #:")
-                logger.debug("Habr:  %s:  %s ", habr['title'], habr['date'])
-                logger.debug("Telegram (ID: %s),: %s", best_match['id'],  best_match['date'])
-                logger.debug("Оценка схожести: %s", {best_score:.2})
+                logger.debug("Habr:  %s:  %s ", habr.title, habr.date)
+                logger.debug("Telegram (ID: %s),: %s", best_match.id, best_match.date)
+                logger.debug("Оценка схожести: %s", {best_score: .2})
                 logger.debug("-" * 100)
             else:
                 unmatched_habr.append(habr)
@@ -178,27 +171,25 @@ class PostMatcher:
 
         logger.info("🔍 Поиск постов Telegram, которым не нашлось пары...")
         for post in tqdm(telegram_posts):
-            if post.get('id') not in used_telegram_ids:
+            if post.id not in used_telegram_ids:
                 unmatched_telegram.append(post)
         logger.info("❌ Не найдено пары для %s telegram-постов.", len(unmatched_telegram))
 
         return matches, unmatched_habr, unmatched_telegram
 
 
-def start():
+def start(telegram_posts: list[TelegramPostModel], habr_posts: list[HabrPostModel]):
     """
     Основная функция для обработки и сопоставления постов Habr и Telegram.
 
     Читает посты из JSON-файлов, удаляет дубликаты в Telegram-постах,
     сопоставляет посты между платформами и сохраняет результаты в Excel.
     """
-    habr_posts = DataStorage.read_json('habr')
-    telegram_posts = DataStorage.read_json('telegram')
 
     matcher = PostMatcher()
     telegram_posts = matcher.remove_telegram_duplicates(telegram_posts)
     matched, unmatched_habr, unmatched_telegram  = matcher.match_posts(habr_posts, telegram_posts)
-    DataStorage.save_to_excel(matched, unmatched_habr, unmatched_telegram)
+    #DataStorage.save_to_excel(matched, unmatched_habr, unmatched_telegram)
 
 if __name__ == '__main__':
     start()
