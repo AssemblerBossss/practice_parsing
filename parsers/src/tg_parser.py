@@ -12,7 +12,10 @@ logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
 
 
 class TelegramChannelParser:
-    """Класс парсера telegram-канала"""
+    """
+    Класс для парсинга сообщений из Telegram-канала.
+    """
+
     def __init__(self, channel_name: str):
         """
         Инициализирует парсер канала Telegram.
@@ -33,7 +36,9 @@ class TelegramChannelParser:
         self.channel_url: str = ''                # Будет содержать ссылку на канал
 
     def _load_env_vars(self):
-        """Загрузка переменных окружения из .env файла"""
+        """
+        Загружает переменные окружения из .env файла или системной среды.
+        """
         if not load_dotenv():
             logger.error("Файл .env не найден, пытаюсь использовать системные переменные окружения")
 
@@ -41,7 +46,12 @@ class TelegramChannelParser:
         self.api_hash = os.getenv('TELEGRAM_API_HASH')
 
     def _validate_credentials(self):
-        """Проверка наличия обязательных переменных"""
+        """
+        Проверяет наличие обязательных переменных окружения:
+        TELEGRAM_API_ID и TELEGRAM_API_HASH.
+
+        :raises ValueError: если одна или обе переменные отсутствуют
+        """
         required_vars = {
             'TELEGRAM_API_ID': self.api_id,
             'TELEGRAM_API_HASH': self.api_hash,
@@ -58,7 +68,11 @@ class TelegramChannelParser:
             )
 
     async def connect_to_channel(self):
-        """Подключение к каналу и получение информации о нем"""
+        """
+        Подключается к Telegram-каналу по имени и сохраняет его объект.
+
+        :raises TypeError: если указанный объект не является каналом
+        """
         self.channel = await self.client.get_entity(self.channel_name)
 
         if not isinstance(self.channel, Channel):
@@ -73,9 +87,10 @@ class TelegramChannelParser:
 
     async def get_posts(self, limit: int = 50, total_limit: int = 0):
         """
-        Получение постов из канала
-        :param limit: Количество постов за один запрос (max 100)
-        :param total_limit: Общее ограничение количества постов (0 - без ограничений)
+        Получает список сообщений из канала.
+
+        :param limit: Количество сообщений за один запрос (максимум 100)
+        :param total_limit: Общее ограничение количества сообщений (0 — без ограничений)
         """
 
         if not self.channel:
@@ -114,7 +129,11 @@ class TelegramChannelParser:
             await asyncio.sleep(0.5)
 
     def _process_messages(self, messages):
-        """Обработка и сохранение сообщений с улучшенным извлечением заголовков"""
+        """
+        Обрабатывает полученные сообщения и сохраняет их в список постов.
+
+        :param messages: Список сообщений Telegram
+        """
         for message in messages:
             # Безопасное получение текста
             text = message.message or ""
@@ -131,7 +150,9 @@ class TelegramChannelParser:
             self.posts.append(post)
 
     def save_to_json(self):
-        """Сохранение в json"""
+        """
+        Сохраняет посты в файл формата JSON.
+        """
         DataStorage.save_as_json(self.posts, 'telegram', channel_url=self.channel_url)
 
     async def run(self, post_limit: int = 500):

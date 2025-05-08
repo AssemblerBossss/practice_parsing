@@ -29,15 +29,19 @@ class HabrParser:
     @staticmethod
     def _get_content_hash(content: str) -> str:
         """
-        Генерирует MD5 хеш контента статьи
+        Генерирует MD5-хеш для переданного текста.
+
         :param content: Текст статьи
+        :return: Хеш-строка
         """
         return md5(content.strip().encode("utf-8")).hexdigest()
 
     def _is_duplicate(self, content: str) -> bool:
         """
-        Проверяет, является ли статья дубликатом
+        Проверяет, является ли статья дубликатом на основе хеша контента.
+
         :param content: Текст статьи
+        :return: True, если статья уже встречалась; False — иначе
         """
         content_hash = self._get_content_hash(content)
         if content_hash in self.unique_hashes:
@@ -46,8 +50,11 @@ class HabrParser:
         return False
 
     async def __aenter__(self):
-        """Инициализирует асинхронную HTTP-сессию при входе в контекстный блок"""
+        """
+        Открывает асинхронную HTTP-сессию при входе в контекстный менеджер.
 
+        :return: Экземпляр HabrParser
+        """
         self.session = aiohttp.ClientSession(
             headers=self.headers,
             timeout=aiohttp.ClientTimeout(total=10))
@@ -62,8 +69,10 @@ class HabrParser:
 
     async def fetch_page(self, page: int) -> Optional[str]:
         """
-        Загружает указанную страницу статей автора.
+        Загружает HTML-код указанной страницы статей пользователя.
+
         :param page: Номер страницы
+        :return: HTML-код страницы или None при ошибке
         """
         url = f"{self.base_url}/ru/users/{self.username}/posts/page{page}/"
 
@@ -80,9 +89,12 @@ class HabrParser:
             return None
 
     def parse_page(self, html: str) -> List[HabrPostModel]:
-        """Извлекает данные статей из HTML.
-        Возвращает список HabrPostModel.
-        Продолжает работу при ошибках парсинга отдельных статей."""
+        """
+        Парсит HTML-код страницы и извлекает статьи.
+
+        :param html: HTML-код страницы
+        :return: Список объектов HabrPostModel
+        """
 
         soup = BeautifulSoup(html, 'lxml')
         posts = soup.find_all('article', class_='tm-articles-list__item_no-padding')
@@ -120,7 +132,11 @@ class HabrParser:
         return articles
 
     async def get_articles(self) -> List[HabrPostModel]:
-        """Загружает статьи со всех страниц параллельно"""
+        """
+        Загружает статьи со всех указанных страниц параллельно.
+
+        :return: Список объектов HabrPostModel
+        """
         tasks = [self.fetch_page(page) for page in range(1, self.max_pages + 1)]
         html_pages = await asyncio.gather(*tasks)
 
@@ -141,10 +157,9 @@ class HabrParser:
 
 async def start_habr(username: str = 'DevFM'):
     """
-    Основная функция для запуска парсинга статей.
+    Основная точка входа для запуска парсинга статей Habr.
 
-    Args:
-        username: Логин автора на Habr (по умолчанию 'DevFM')
+    :param username: Имя пользователя на Habr
     """
     async with HabrParser(username) as parser:
         task = asyncio.create_task(parser.get_articles())
