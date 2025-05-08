@@ -138,6 +138,7 @@ class PostMatcher:
 
         habr_embeddings = self.get_embeddings_for_posts(habr_posts, key='content')
         telegram_embeddings = self.get_embeddings_for_posts(telegram_posts, key='text')
+        telegram_channel_url: str = DataStorage.extract_channel_url('telegram')
 
         for i, habr in enumerate(tqdm(habr_posts)):
             best_match_idx = None
@@ -157,7 +158,7 @@ class PostMatcher:
                 matches.append({
                     "habr_title": habr['title'],
                     "habr_date": habr['date'],
-                    "telegram_id": best_match['id'],
+                    "telegram_id": f"{telegram_channel_url}/{best_match['id']}",
                     "telegram_date": best_match['date'],
                     "similarity": best_score,
                     "habr_text": habr['content'],

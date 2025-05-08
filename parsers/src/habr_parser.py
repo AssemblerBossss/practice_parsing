@@ -27,11 +27,17 @@ class HabrParser:
 
     @staticmethod
     def _get_content_hash(self, content: str) -> str:
-        """Генерирует MD5 хеш контента статьи"""
+        """
+        Генерирует MD5 хеш контента статьи
+        :param content: Текст статьи
+        """
         return md5(content.strip().encode("utf-8")).hexdigest()
 
     def _is_duplicate(self, content: str) -> bool:
-        """Проверяет, является ли статья дубликатом"""
+        """
+        Проверяет, является ли статья дубликатом
+        :param content: Текст статьи
+        """
         content_hash = self._get_content_hash(content)
         if content_hash in self.unique_hashes:
             return True
@@ -54,9 +60,9 @@ class HabrParser:
             await self.session.close()
 
     async def fetch_page(self, page: int) -> Optional[str]:
-        """Загружает указанную страницу статей автора.
-
-        Возвращает HTML-текст страницы или None при ошибке.
+        """
+        Загружает указанную страницу статей автора.
+        :param page: Номер страницы
         """
         url = f"{self.base_url}/ru/users/{self.username}/posts/page{page}/"
 
@@ -122,7 +128,7 @@ class HabrParser:
                 continue
 
             self.articles.extend(articles)
-            DataStorage.save_as_json(self.articles, 'habr')
+            DataStorage.save_as_json(self.articles, 'habr', channel_url="")
 
         return self.articles
 

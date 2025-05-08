@@ -15,7 +15,7 @@ class TelegramChannelParser:
     def __init__(self, channel_name: str):
         """
         Инициализирует парсер канала Telegram.
-        :param channel_name (str): Название канала
+        :param channel_name: Название канала
         """
 
         self._load_env_vars()         # Загрузка переменных окружения
