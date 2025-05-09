@@ -1,6 +1,7 @@
 import asyncio
 from parsers.src import *
 from parsers.content_comporator_bert import start
+from storage import DataStorage
 
 
 async def main():
@@ -13,18 +14,18 @@ async def main():
     telegram_name = input(f"Введите название канала в Telegram [{DEFAULT_TG_CHANNEL}]: ") or DEFAULT_TG_CHANNEL
 
     # Запуск парсеров
-
     parser_habr = HabrParser(habr_name)
-    habr_posts = await parser_habr.start()
+    await parser_habr.start()
 
 
     parser_tg = TelegramChannelParser(telegram_name)
-    await parser_tg.run(post_limit=100)
-    telegram_posts = parser_tg.get_posts()
-
+    await parser_tg.run()
 
     # Запуск сравнения
-    start(telegram_posts, habr_posts)
+    start(parser_tg.get_posts(), parser_habr.get_posts())
+
+    DataStorage.save_as_json(parser_tg.get_posts(), filename='telegram', channel_url=parser_tg.channel_url)
+    DataStorage.save_as_json(parser_habr.get_posts(), filename='habr', channel_url=parser_habr.url)
 
 
 if __name__ == "__main__":

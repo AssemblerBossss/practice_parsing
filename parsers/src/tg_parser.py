@@ -156,9 +156,14 @@ class TelegramChannelParser:
         DataStorage.save_as_json(self.posts, 'telegram', channel_url=self.channel_url)
 
     def get_posts(self) -> list[TelegramPostModel]:
+        """
+        Возвращает список постов
+
+        :return Список постов posts
+        """
         return self.posts
 
-    async def run(self, post_limit: int = 500):
+    async def run(self, post_limit: int = 0):
         """Основной метод для запуска парсера"""
         async with self.client:
             await self.connect_to_channel()
