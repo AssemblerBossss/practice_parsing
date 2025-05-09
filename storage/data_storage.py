@@ -7,6 +7,7 @@ from typing import Literal
 from datetime import datetime
 
 from loggers import setup_logger
+from models import HabrPostModel, TelegramPostModel
 from storage.storage_config import (DATA_DIR, ALLOWED_FILES)
 
 logger = setup_logger("saving_logger", log_file="saving.log")
@@ -50,7 +51,6 @@ class DataStorage:
         if DataStorage.check_is_dataclass(posts[0]):
             posts = DataStorage.convert_to_dict(posts)
 
-
         output_data = {
             'metadata': {
                 'generated_at' : datetime.now().strftime('%Y-%m-%d %H:%M'),
@@ -78,12 +78,11 @@ class DataStorage:
 
     @staticmethod
     def save_to_excel(matched: list[dict],
-                      unmatched_habr: list[dict],
-                      unmatched_telegram: list[dict],
+                      unmatched_habr: list[HabrPostModel],
+                      unmatched_telegram: list[TelegramPostModel],
                       matched_path: str = 'matched_posts.xlsx',
                       unmatched_habr_path: str = 'unmatched_habr.xlsx',
                       unmatched_telegram_path: str = 'unmatched_telegram.xlsx'
-
                       ) -> None:
         """
         Сохраняет результаты сопоставления постов в отдельные Excel-файлы.
@@ -118,9 +117,9 @@ class DataStorage:
         unmatched_df = pd.DataFrame(unmatched_habr)
         unmatched_telegram_df = pd.DataFrame(unmatched_telegram)
 
-        matched_df['telegram_text'] = matched_df['telegram_text'].str.replace('#', '', regex=False)
-        matched_df['habr_text'] = matched_df['habr_text'].str.replace('#', '', regex=False)
-        unmatched_telegram_df['text'] = unmatched_telegram_df['text'].str.replace('#', '', regex=False)
+        matched_df['telegram_content'] = matched_df['telegram_content'].str.replace('#', '', regex=False)
+        matched_df['habr_content'] = matched_df['habr_content'].str.replace('#', '', regex=False)
+        unmatched_telegram_df['content'] = unmatched_telegram_df['content'].str.replace('#', '', regex=False)
 
         with pd.ExcelWriter(matched_path, engine='openpyxl') as writer:
             matched_df.to_excel(writer, index=False, sheet_name='Matched')

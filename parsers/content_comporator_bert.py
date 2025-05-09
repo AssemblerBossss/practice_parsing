@@ -188,4 +188,5 @@ def start(telegram_posts: list[TelegramPostModel], habr_posts: list[HabrPostMode
     matcher = PostMatcher()
     telegram_posts = matcher.remove_telegram_duplicates(telegram_posts)
     matched, unmatched_habr, unmatched_telegram  = matcher.match_posts(habr_posts, telegram_posts)
-    #DataStorage.save_to_excel(matched, unmatched_habr, unmatched_telegram)
+    unmatched_telegram = DataStorage.convert_to_dict(unmatched_telegram)
+    DataStorage.save_to_excel(matched, unmatched_habr, unmatched_telegram)
