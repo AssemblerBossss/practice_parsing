@@ -16,6 +16,7 @@ class HabrParser:
         self.username: str = username
         self.max_pages: int = max_pages
         self.base_url = "https://habr.com"
+        self.url: str = f"{self.base_url}/ru/users/{self.username}"
         self.articles: list[HabrPostModel] = []
         self.ua = UserAgent()
         self.unique_hashes = set()
@@ -74,7 +75,7 @@ class HabrParser:
         :param page: Номер страницы
         :return: HTML-код страницы или None при ошибке
         """
-        url = f"{self.base_url}/ru/users/{self.username}/posts/page{page}/"
+        url = f"{self.url}/posts/page{page}/"
 
         try:
             async with self.session.get(url) as response:
@@ -152,6 +153,9 @@ class HabrParser:
             self.articles.extend(articles)
             #DataStorage.save_as_json(self.articles, 'habr', channel_url="")
 
+        return self.articles
+
+    def get_posts(self):
         return self.articles
 
     async def start(self):
