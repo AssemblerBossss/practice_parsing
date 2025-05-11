@@ -151,8 +151,8 @@ class HabrParser:
                 continue
 
             self.articles.extend(articles)
-            #DataStorage.save_as_json(self.articles, 'habr', channel_url="")
-
+            #
+        DataStorage.save_as_json(self.articles, 'habr', channel_url=self.url)
         return self.articles
 
     def get_posts(self):

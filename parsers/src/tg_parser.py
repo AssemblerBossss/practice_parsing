@@ -85,7 +85,7 @@ class TelegramChannelParser:
             # Приватный канал или приглашение
             self.channel_url = f"https://t.me/c/{self.channel.id}"
 
-    async def get_posts_from_channel(self, limit: int = 50, total_limit: int = 0):
+    async def get_posts_from_channel(self, limit: int = 100, total_limit: int = 0):
         """
         Получает список сообщений из канала.
 
@@ -128,6 +128,14 @@ class TelegramChannelParser:
             # Небольшая задержка чтобы не нагружать сервер
             await asyncio.sleep(0.5)
 
+    def replace_second_end_of_line(self, content: str) -> str:
+        paragraphs = content.strip().split('\n\n')
+        html_paragraphs = []
+        for p in paragraphs:
+            cleaned = p.replace('\n', ' ')
+            html_paragraphs.append(f"{cleaned}")
+        return '\n'.join(html_paragraphs)
+
     def _process_messages(self, messages):
         """
         Обрабатывает полученные сообщения и сохраняет их в список постов.
@@ -137,6 +145,7 @@ class TelegramChannelParser:
         for message in messages:
             # Безопасное получение текста
             content = message.message or ""
+            content = self.replace_second_end_of_line(content)
 
             post = TelegramPostModel(
                 id=message.id,
@@ -168,7 +177,7 @@ class TelegramChannelParser:
         async with self.client:
             await self.connect_to_channel()
             await self.get_posts_from_channel(total_limit=post_limit)
-            #self.save_to_json()
+            self.save_to_json()
 
 
 # Пример использования

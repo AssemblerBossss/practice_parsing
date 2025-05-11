@@ -24,3 +24,17 @@ class HabrPostModel:
     title: str              # Заголовок статьи
     date: str               # Дата публикации статьи
     content: str            # Основной текст статьи
+
+
+@dataclass
+class PikabuPostModel:
+    """
+    Класс, представляющий статью на платформе Pikabu.
+    """
+    id: int                 # Уникальный идентификатор поста.
+    title: str              # Заголовок статьи
+    date: str               # Дата публикации
+    content: str            # Текст поста
+    rating: str             # Рейтинг статьи
+    post_url: str           # Прямая ссылка на пост в Pikabu
+    url_profile: str        # Ссылка на автора статьи

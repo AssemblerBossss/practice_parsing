@@ -1,6 +1,9 @@
 import asyncio
+
+from models import PikabuPostModel
 from parsers.src import *
 from parsers.content_comporator_bert import start
+from parsers.src import parse_user_profile
 from storage import DataStorage
 
 
@@ -14,18 +17,17 @@ async def main():
     telegram_name = input(f"Введите название канала в Telegram [{DEFAULT_TG_CHANNEL}]: ") or DEFAULT_TG_CHANNEL
 
     # Запуск парсеров
-    parser_habr = HabrParser(habr_name)
-    await parser_habr.start()
-
-
     parser_tg = TelegramChannelParser(telegram_name)
-    await parser_tg.run()
+    tg_task = asyncio.create_task(parser_tg.run())
 
+    parser_habr = HabrParser(habr_name)
+    habr_task = asyncio.create_task(parser_habr.start())
+
+    await asyncio.gather(tg_task, habr_task)
+
+    pikabu_posts: list[PikabuPostModel] = parse_user_profile()
     # Запуск сравнения
-    start(parser_tg.get_posts(), parser_habr.get_posts())
-
-    DataStorage.save_as_json(parser_tg.get_posts(), filename='telegram', channel_url=parser_tg.channel_url)
-    DataStorage.save_as_json(parser_habr.get_posts(), filename='habr', channel_url=parser_habr.url)
+    start(parser_habr.get_posts(), parser_tg.get_posts(), pikabu_posts)
 
 
 if __name__ == "__main__":

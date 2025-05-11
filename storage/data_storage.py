@@ -7,7 +7,7 @@ from typing import Literal
 from datetime import datetime
 
 from loggers import setup_logger
-from models import HabrPostModel, TelegramPostModel
+from models import HabrPostModel, TelegramPostModel, PikabuPostModel
 from storage.storage_config import (DATA_DIR, ALLOWED_FILES)
 
 logger = setup_logger("saving_logger", log_file="saving.log")
@@ -69,7 +69,6 @@ class DataStorage:
             logger.error("Failed to save posts: %s", str(e))
             return False
 
-
     @staticmethod
     def auto_adjust_column_width(ws, df: pd.DataFrame) -> None:
         for i, column in enumerate(df.columns, 1):
@@ -80,9 +79,11 @@ class DataStorage:
     def save_to_excel(matched: list[dict],
                       unmatched_habr: list[HabrPostModel],
                       unmatched_telegram: list[TelegramPostModel],
+                      unmatched_pikabu: list[PikabuPostModel],
                       matched_path: str = 'matched_posts.xlsx',
                       unmatched_habr_path: str = 'unmatched_habr.xlsx',
-                      unmatched_telegram_path: str = 'unmatched_telegram.xlsx'
+                      unmatched_telegram_path: str = 'unmatched_telegram.xlsx',
+                      unmatched_pikabu_path: str = "unmatched_pikabu.xlsx"
                       ) -> None:
         """
         Сохраняет результаты сопоставления постов в отдельные Excel-файлы.
@@ -94,16 +95,16 @@ class DataStorage:
 
         Также очищает тексты от символа '#' и автоматически подбирает ширину колонок в таблицах.
 
-        Args:
-            matched (list[dict]): Список словарей с совпавшими постами.
-            unmatched_habr (list[dict]): Список словарей с Habr-постами без пары.
-            unmatched_telegram (list[dict]): Список словарей с Telegram-постами без пары.
-            matched_path (str): Имя файла для сохранения совпавших пар.
-            unmatched_habr_path (str): Имя файла для несопоставленных Habr-постов.
-            unmatched_telegram_path (str): Имя файла для несопоставленных Telegram-постов.
+        :param matched: Список словарей с совпавшими постами.
+        :param unmatched_habr: Список Habr-постов без пары.
+        :param unmatched_telegram: Список Telegram-постов без пары.
+        :param unmatched_pikabu: Список Pikabu-постов без пары.
+        :param matched_path: Имя файла для сохранения совпавших пар.
+        :param unmatched_habr_path: Имя файла для несопоставленных Habr-постов.
+        :param unmatched_telegram_path: Имя файла для несопоставленных Telegram-постов.
+        :param unmatched_pikabu_path: Имя файла для несопоставленных Pikabu-постов.
 
-        Returns:
-            None
+        :return None
         """
 
 
@@ -116,10 +117,11 @@ class DataStorage:
         matched_df = pd.DataFrame(matched)
         unmatched_df = pd.DataFrame(unmatched_habr)
         unmatched_telegram_df = pd.DataFrame(unmatched_telegram)
+        unmatched_pikabu_df = pd.DataFrame(unmatched_pikabu)
 
-        matched_df['telegram_content'] = matched_df['telegram_content'].str.replace('#', '', regex=False)
-        matched_df['habr_content'] = matched_df['habr_content'].str.replace('#', '', regex=False)
-        unmatched_telegram_df['content'] = unmatched_telegram_df['content'].str.replace('#', '', regex=False)
+        # matched_df['telegram_content'] = matched_df['telegram_content'].str.replace('#', '', regex=False)
+        # matched_df['habr_content'] = matched_df['habr_content'].str.replace('#', '', regex=False)
+        # unmatched_telegram_df['content'] = unmatched_telegram_df['content'].str.replace('#', '', regex=False)
 
         with pd.ExcelWriter(matched_path, engine='openpyxl') as writer:
             matched_df.to_excel(writer, index=False, sheet_name='Matched')
@@ -133,6 +135,11 @@ class DataStorage:
             unmatched_telegram_df.to_excel(writer, index=False, sheet_name='Unmatched_telegram')
             DataStorage.auto_adjust_column_width(writer.sheets['Unmatched_telegram'], unmatched_telegram_df)
 
+        with pd.ExcelWriter(unmatched_pikabu_path, engine='openpyxl') as writer:
+            unmatched_pikabu_df.to_excel(writer, index=False, sheet_name='Unmatched_pikabu')
+            DataStorage.auto_adjust_column_width(writer.sheets['Unmatched_pikabu'], unmatched_pikabu_df)
+
         logger.info(f"✅ Сопоставленные пары записаны в {matched_path}")
         logger.info(f"📄 Несопоставленные habr-посты записаны в {unmatched_habr_path}")
         logger.info(f"📄 Несопоставленные telegram-посты записаны в {unmatched_telegram_path}")
+        logger.info(f"📄 Несопоставленные pikabu-посты записаны в {unmatched_pikabu_path}")

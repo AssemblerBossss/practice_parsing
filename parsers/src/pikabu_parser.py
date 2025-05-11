@@ -1,19 +1,23 @@
-import json
+import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
-import time
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
+from storage import DataStorage
+from models import PikabuPostModel
+from loggers import setup_logger, DEFAULT_PIKABU_LOG_FILE
+
 # Параметры ниже зависят от качества интернет соединения(если интернет-соединение хорошее - можно уменьшить параметры)
-SCROLL_NUM = 10  # Кол-во скроллов для прогрузки содержимого (Оптимально - 5)
-DELAY_BETWEEN_REQUESTS = 10  # Время - задержка между скроллами (Оптимально - 5)
+SCROLL_NUM = 20             # Кол-во скроллов для прогрузки содержимого (Оптимально - 5)
+DELAY_BETWEEN_REQUESTS = 1  # Время - задержка между скроллами (Оптимально - 5)
 COMMENT_EXPAND_DELAY = 5
 MAX_RETRIES = 5
 
+logger = setup_logger('pikabu_logger', log_file=DEFAULT_PIKABU_LOG_FILE)
 
 def expand_comment_branches(driver):
     """Рекурсивно раскрывает все уровни вложенных комментариев"""
@@ -50,9 +54,10 @@ def expand_comment_branches(driver):
                 )
                 time.sleep(COMMENT_EXPAND_DELAY)
 
-            except (TimeoutException, StaleElementReferenceException):
-                continue
 
+            except (TimeoutException, StaleElementReferenceException) as e:
+                logger.warning(f"Ошибка при раскрытии комментария: {str(e)}")
+                continue
         # Рекурсивный вызов для новых уровней
         expand_comment_branches(driver)
 
@@ -87,24 +92,27 @@ def parse_comments(soup):
     return comments
 
 
-def parse_post_comments(driver, post_url):
-    driver.get(post_url)
-    time.sleep(2)
+# def parse_post_comments(driver, post_url):
+#     driver.get(post_url)
+#     time.sleep(2)
+#
+#     try:
+#         # Раскрываем все ветки
+#         expand_comment_branches(driver)
+#
+#         # Получаем обновленный HTML
+#         soup = BeautifulSoup(driver.page_source, 'html.parser')
+#         return parse_comments(soup)
+#
+#     except Exception as e:
+#         print(f"Ошибка парсинга: {e}")
+#         return []
 
-    try:
-        # Раскрываем все ветки
-        expand_comment_branches(driver)
 
-        # Получаем обновленный HTML
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        return parse_comments(soup)
+def parse_user_profile() -> list[PikabuPostModel]:
+    profile_name = input("Введите имя профиля Pikabu: ")
+    profile_url = f'https://pikabu.ru/@{profile_name}'
 
-    except Exception as e:
-        print(f"Ошибка парсинга: {e}")
-        return []
-
-
-def parse_user_profile(profile_url, output_file):
     # настр-ка параметров бразера Chrome
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
@@ -126,13 +134,15 @@ def parse_user_profile(profile_url, output_file):
             new_height = driver.execute_script("return document.body.scrollHeight")
             if new_height == last_scroll:
                 scroll_attempts += 1
+                logger.debug(f"Высота страницы не изменилась (попытка {scroll_attempts}/{SCROLL_NUM})")
             else:
                 scroll_attempts = 0
                 last_scroll = new_height
+                logger.debug(f"Новая высота страницы после скролла: {new_height}")
 
         # парсинг содержимого страницы
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        stories = []
+        soup = BeautifulSoup(driver.page_source, 'lxml')
+        stories: list[PikabuPostModel] = []
 
         # поиск всех статей
         count_posts = 0
@@ -145,7 +155,7 @@ def parse_user_profile(profile_url, output_file):
             link = urljoin(profile_url, link_elem['href']) if link_elem else None
 
             content_elem = story.find('div', class_='story__content-inner')
-            content = ' '.join(content_elem.text.split()) if content_elem else None
+            content = '\n'.join(content_elem.text.split()) if content_elem else None
 
             date_elem = story.find('time', class_='story__datetime')
             date = date_elem['datetime'] if date_elem else None
@@ -156,35 +166,32 @@ def parse_user_profile(profile_url, output_file):
             if (title is None) and (link is None):
                 continue
 
-            comments = parse_post_comments(driver, link)
-            print(comments)
+            #comments = parse_post_comments(driver, link)
+            #print(comments)
 
-            stories.append({
-                'post_num': count_posts,
-                'title': title,
-                'url_post': link,
-                'content': content,
-                'date': date,
-                'rating': rating,
-                'url_profile': profile_url,
-                'comments': comments,
-                'comments_count': len(comments)
-            })
-
-
-
-        # Сохранение в JSON
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(stories, f, ensure_ascii=False, indent=2)
-    except:
-        print("Непредвиденная ошибка")
+            post = PikabuPostModel(
+                id=count_posts,
+                title=title,
+                post_url=link,
+                content=content,
+                date=date,
+                rating=rating,
+                url_profile=profile_url,
+            )
+            stories.append(post)
+            logger.debug(f"Статья #{count_posts} успешно обработана: {title}")
+        if stories:
+            logger.info(f"Успешно обработано {len(stories)} статей из {count_posts}")
+            DataStorage.save_as_json(stories, 'pikabu', channel_url=stories[0].url_profile)
+            logger.info(f"Данные сохранены в JSON файл")
+            return stories
+        else:
+            logger.warning("Не удалось обработать ни одной статьи")
+    except Exception as e:
+        logger.error(f"Критическая ошибка при парсинге профиля: {str(e)}", exc_info=True)
     finally:
         driver.quit()
 
 
 if __name__ == "__main__":
-    profile_url = input("Введите URL профиля Pikabu: ")
-    if not profile_url.startswith('https://pikabu.ru/@'):
-        print("Некорректная ссылка на профиль!")
-        exit()
-    parse_user_profile(profile_url, "user_articles.json")
+    parse_user_profile()
