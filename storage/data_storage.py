@@ -110,9 +110,10 @@ class DataStorage:
 
         DATA_DIR.mkdir(exist_ok=True, parents=True)
 
-        matched_path = DATA_DIR / matched_path
-        unmatched_habr_path = DATA_DIR / unmatched_habr_path
+        matched_path            = DATA_DIR / matched_path
+        unmatched_habr_path     = DATA_DIR / unmatched_habr_path
         unmatched_telegram_path = DATA_DIR / unmatched_telegram_path
+        unmatched_pikabu_path   = DATA_DIR / unmatched_pikabu_path
 
         matched_df = pd.DataFrame(matched)
         unmatched_df = pd.DataFrame(unmatched_habr)

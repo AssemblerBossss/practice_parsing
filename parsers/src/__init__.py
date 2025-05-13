@@ -5,5 +5,6 @@ from .pikabu_parser import parse_user_profile
 
 __all__ = [
     'HabrParser',
-    'TelegramChannelParser'
+    'TelegramChannelParser',
+    'parse_user_profile'
 ]

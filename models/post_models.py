@@ -24,6 +24,7 @@ class HabrPostModel:
     title: str              # Заголовок статьи
     date: str               # Дата публикации статьи
     content: str            # Основной текст статьи
+    post_url: str           # Прямая ссылка на пост в Habr
 
 
 @dataclass

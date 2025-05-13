@@ -29,6 +29,7 @@ selenium = "^4.31.0"
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.2"
 pylint = "^3.3.6"
+black = "^25.1.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -2,8 +2,9 @@ import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
-from typing import Optional, List
+from typing import Optional
 from hashlib import md5
+from dateutil.parser import parse
 
 from loggers import setup_logger, DEFAULT_HABR_LOG_FILE
 from storage import DataStorage
@@ -12,6 +13,10 @@ from models import HabrPostModel
 
 
 class HabrParser:
+    """
+    Класс для парсинга постов из Habr.
+    """
+
     def __init__(self, username: str, max_pages: int = 2):
         self.username: str = username
         self.max_pages: int = max_pages
@@ -20,7 +25,7 @@ class HabrParser:
         self.articles: list[HabrPostModel] = []
         self.ua = UserAgent()
         self.unique_hashes = set()
-        self.logger = setup_logger('habr_logger', log_file=DEFAULT_HABR_LOG_FILE)
+        self.logger = setup_logger("habr_logger", log_file=DEFAULT_HABR_LOG_FILE)
         self.session = None
         self.headers = {
             "User-Agent": self.ua.chrome,
@@ -57,13 +62,13 @@ class HabrParser:
         :return: Экземпляр HabrParser
         """
         self.session = aiohttp.ClientSession(
-            headers=self.headers,
-            timeout=aiohttp.ClientTimeout(total=10))
+            headers=self.headers, timeout=aiohttp.ClientTimeout(total=10)
+        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Вызывается при выходе из блока async with
-           Закрывает HTTP-сессию (aiohttp.ClientSession) """
+        Закрывает HTTP-сессию (aiohttp.ClientSession)"""
 
         if self.session:
             await self.session.close()
@@ -89,7 +94,7 @@ class HabrParser:
             self.logger.error("Ошибка при загрузке страницы %d: %s", page, str(e))
             return None
 
-    def parse_page(self, html: str) -> List[HabrPostModel]:
+    def parse_page(self, html: str) -> list[HabrPostModel]:
         """
         Парсит HTML-код страницы и извлекает статьи.
 
@@ -97,32 +102,48 @@ class HabrParser:
         :return: Список объектов HabrPostModel
         """
 
-        soup = BeautifulSoup(html, 'lxml')
-        posts = soup.find_all('article', class_='tm-articles-list__item_no-padding')
+        soup = BeautifulSoup(html, "lxml")
+        posts = soup.find_all("article", class_="tm-articles-list__item_no-padding")
         articles = []
         for post in posts:
             try:
-                title_tag = post.find('strong') if post.find('strong') else None
-                time_tag = post.find('time') or post.find('span', class_='tm-publication-date')
+                title_tag = post.find("strong") if post.find("strong") else None
+                time_tag = post.find("time") or post.find(
+                    "span", class_="tm-publication-date"
+                )
 
-                content = "\n".join(p.get_text(separator=' ') for p in post.find_all('p'))
+                link_tag = post.find("a", class_="tm-article-datetime-published_link")
+                post_url = (
+                    f"{self.base_url}{link_tag['href']}"
+                    if link_tag and link_tag.has_attr("href")
+                    else None
+                )
+
+                content = "\n".join(
+                    p.get_text(separator=" ") for p in post.find_all("p")
+                )
 
                 if not title_tag or not time_tag:
                     self.logger.warning("Не найдены обязательные теги в статье")
                     continue
 
                 if self._is_duplicate(content):
-                    self.logger.warning(f"Найден дубликат статьи: {title_tag.text.strip()}")
+                    self.logger.warning(
+                        f"Найден дубликат статьи: %s", title_tag.text.strip()
+                    )
                     continue
-                from dateutil.parser import parse
 
-                date = str(parse(time_tag['datetime']).date()) if 'datetime' in time_tag.attrs else str(
-                    parse(time_tag.text.strip()).date())
+                date = (
+                    str(parse(time_tag["datetime"]).date())
+                    if "datetime" in time_tag.attrs
+                    else str(parse(time_tag.text.strip()).date())
+                )
 
                 article = HabrPostModel(
                     title=title_tag.text.strip(),
                     date=date,
-                    content=content
+                    content=content,
+                    post_url=post_url,
                 )
                 articles.append(article)
 
@@ -132,7 +153,7 @@ class HabrParser:
                 continue
         return articles
 
-    async def get_articles(self) -> List[HabrPostModel]:
+    async def get_articles(self) -> list[HabrPostModel]:
         """
         Загружает статьи со всех указанных страниц параллельно.
 
@@ -151,11 +172,11 @@ class HabrParser:
                 continue
 
             self.articles.extend(articles)
-            #
-        DataStorage.save_as_json(self.articles, 'habr', channel_url=self.url)
+
+        DataStorage.save_as_json(self.articles, "habr", channel_url=self.url)
         return self.articles
 
-    def get_posts(self):
+    def get_posts(self) -> list[HabrPostModel]:
         return self.articles
 
     async def start(self):
@@ -173,7 +194,6 @@ class HabrParser:
                 self.logger.info("Найдено статей: %d", len(articles))
 
             return articles
-
 
 
 if __name__ == "__main__":

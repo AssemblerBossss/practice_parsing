@@ -4,7 +4,6 @@ from models import PikabuPostModel
 from parsers.src import *
 from parsers.content_comporator_bert import start
 from parsers.src import parse_user_profile
-from storage import DataStorage
 
 
 async def main():

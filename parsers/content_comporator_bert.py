@@ -29,7 +29,9 @@ class PostMatcher:
         model (SentenceTransformer): Модель для получения эмбеддингов текста
     """
 
-    def __init__(self, threshold_duplicate_: float = 0.9, threshold_match_: float = 0.65):
+    def __init__(
+        self, threshold_duplicate_: float = 0.9, threshold_match_: float = 0.65
+    ):
         """
         Инициализирует PostMatcher с заданными параметрами.
 
@@ -42,15 +44,17 @@ class PostMatcher:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         logger.info("🔄 Загрузка модели SentenceTransformers...")
-        self.model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+        self.model = SentenceTransformer(
+            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        )
         self.model = self.model.to(self.device)
         logger.info("✅ Модель загружена.")
 
     @staticmethod
     def normalize_text(text: str) -> str:
         """Нормализует текст: заменяет множественные пробелы на один, обрезает
-         и приводит к нижнему регистру."""
-        text = re.sub(r'\s+', ' ', text)
+        и приводит к нижнему регистру."""
+        text = re.sub(r"\s+", " ", text)
         return text.strip().lower()
 
     def get_embeddings_for_posts(self, posts: list) -> list[torch.Tensor]:
@@ -64,10 +68,7 @@ class PostMatcher:
         texts = [self.normalize_text(post.content) for post in posts]
         with torch.no_grad():
             embeddings = self.model.encode(
-                texts,
-                batch_size=16,
-                show_progress_bar=True,
-                device=str(self.device)
+                texts, batch_size=16, show_progress_bar=True, device=str(self.device)
             )
             return [torch.from_numpy(embedding) for embedding in embeddings]
 
@@ -98,7 +99,7 @@ class PostMatcher:
                 sim = cosine_similarity([embeddings[i]], [embeddings[j]])[0][0]
                 if sim > self.threshold_duplicate:
                     # Для Telegram выбираем пост с большим количеством просмотров
-                    if hasattr(posts[j], 'views') and hasattr(posts[best_idx], 'views'):
+                    if hasattr(posts[j], "views") and hasattr(posts[best_idx], "views"):
                         if (posts[j].views or 0) > (posts[best_idx].views or 0):
                             best_idx = j
                     seen.add(j)
@@ -111,11 +112,12 @@ class PostMatcher:
         logger.info(f"✅ Оставлено {len(filtered_posts)} уникальных постов.")
         return filtered_posts
 
-    def match_all_posts(self,
-                        habr_posts: list[HabrPostModel],
-                        telegram_posts: list[TelegramPostModel],
-                        pikabu_posts: list[PikabuPostModel]) \
-            -> tuple:
+    def match_all_posts(
+        self,
+        habr_posts: list[HabrPostModel],
+        telegram_posts: list[TelegramPostModel],
+        pikabu_posts: list[PikabuPostModel],
+    ) -> tuple:
         """
         Сопоставляет посты между платформами Habr и Telegram на основе их семантической схожести.
 
@@ -133,8 +135,12 @@ class PostMatcher:
             - Список несопоставленных постов Pikabu
         """
 
-        logger.info("📥 Получено %s постов Habr, %s Telegram, %s Pikabu",
-                    len(habr_posts), len(telegram_posts), len(pikabu_posts))
+        logger.info(
+            "📥 Получено %s постов Habr, %s Telegram, %s Pikabu",
+            len(habr_posts),
+            len(telegram_posts),
+            len(pikabu_posts),
+        )
 
         telegram_posts = self.remove_duplicates(telegram_posts)
         pikabu_posts = self.remove_duplicates(pikabu_posts)
@@ -148,7 +154,9 @@ class PostMatcher:
         used_telegram = set()
         used_pikabu = set()
 
-        for i, habr_post in enumerate(tqdm(habr_posts, desc="🔍 Сопоставление постов Habr, Telegram и Pikabu...")):
+        for i, habr_post in enumerate(
+            tqdm(habr_posts, desc="🔍 Сопоставление постов Habr, Telegram и Pikabu...")
+        ):
             habr_emb = habr_embeddings[i]
 
             # Поиск лучшего Telegram поста
@@ -176,20 +184,29 @@ class PostMatcher:
                     best_pikabu_index = k
 
             if best_telegram or best_pikabu:
-                matched_habr.append({
-                    "habr_title": habr_post.title,
-                    "habr_date": habr_post.date,
-                    "habr_content": habr_post.content,
-                    "telegram_url": best_telegram.post_url if best_telegram else None,
-                    "telegram_date": best_telegram.date if best_telegram else None,
-                    "telegram_content": best_telegram.content if best_telegram else None,
-                    "telegram_similarity": best_telegram_score if best_telegram else 0,
-                    "pikabu_title": best_pikabu.title if best_pikabu else None,
-                    "pikabu_date": best_pikabu.date if best_pikabu else None,
-                    "pikabu_url": best_pikabu.post_url if best_pikabu else None,
-                    "pikabu_content": best_pikabu.content if best_pikabu else None,
-                    "pikabu_similarity": best_pikabu_score if best_pikabu else 0
-                })
+                matched_habr.append(
+                    {
+                        "habr_title": habr_post.title,
+                        "habr_url": habr_post.post_url,
+                        "habr_date": habr_post.date,
+                        "habr_content": habr_post.content,
+                        "telegram_url": (
+                            best_telegram.post_url if best_telegram else None
+                        ),
+                        "telegram_date": best_telegram.date if best_telegram else None,
+                        "telegram_content": (
+                            best_telegram.content if best_telegram else None
+                        ),
+                        "telegram_similarity": (
+                            best_telegram_score if best_telegram else 0
+                        ),
+                        "pikabu_title": best_pikabu.title if best_pikabu else None,
+                        "pikabu_date": best_pikabu.date if best_pikabu else None,
+                        "pikabu_url": best_pikabu.post_url if best_pikabu else None,
+                        "pikabu_content": best_pikabu.content if best_pikabu else None,
+                        "pikabu_similarity": best_pikabu_score if best_pikabu else 0,
+                    }
+                )
                 if best_telegram:
                     used_telegram.add(best_telegram_index)
                 if best_pikabu:
@@ -197,8 +214,12 @@ class PostMatcher:
             else:
                 unmatched_habr.append(habr_post)
 
-        unmatched_telegram = [post for i, post in enumerate(telegram_posts) if i not in used_telegram]
-        unmatched_pikabu = [post for i, post in enumerate(pikabu_posts) if i not in used_pikabu]
+        unmatched_telegram = [
+            post for i, post in enumerate(telegram_posts) if i not in used_telegram
+        ]
+        unmatched_pikabu = [
+            post for i, post in enumerate(pikabu_posts) if i not in used_pikabu
+        ]
 
         logger.info("📊 Результаты сопоставления:")
         logger.info(f"✅ Сопоставлено постов Habr: {len(matched_habr)}")
@@ -208,9 +229,12 @@ class PostMatcher:
 
         return matched_habr, unmatched_habr, unmatched_telegram, unmatched_pikabu
 
-def start(habr_posts: list[HabrPostModel],
-          telegram_posts: list[TelegramPostModel],
-          pikabu_posts: list[PikabuPostModel]):
+
+def start(
+    habr_posts: list[HabrPostModel],
+    telegram_posts: list[TelegramPostModel],
+    pikabu_posts: list[PikabuPostModel],
+):
     """
     Основная функция для обработки и сопоставления постов.
 
@@ -221,8 +245,11 @@ def start(habr_posts: list[HabrPostModel],
     matcher = PostMatcher()
 
     # Сопоставляем посты
-    matched, unmatched_habr, unmatched_telegram, unmatched_pikabu = matcher.match_all_posts(
-        habr_posts, telegram_posts, pikabu_posts)
+    matched, unmatched_habr, unmatched_telegram, unmatched_pikabu = (
+        matcher.match_all_posts(habr_posts, telegram_posts, pikabu_posts)
+    )
 
     # Сохраняем результаты
-    DataStorage.save_to_excel(matched, unmatched_habr, unmatched_telegram, unmatched_pikabu)
+    DataStorage.save_to_excel(
+        matched, unmatched_habr, unmatched_telegram, unmatched_pikabu
+    )
