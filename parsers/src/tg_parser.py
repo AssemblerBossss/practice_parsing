@@ -1,21 +1,27 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from telethon.sync import TelegramClient                      # Основной клиент для работы(синхронный)
-from telethon.tl.functions.messages import GetHistoryRequest  # Получение истории сообщений из чата
-from telethon.tl.types import Channel                         # Тип, представляющий тг-канал
+from telethon.sync import TelegramClient  # Основной клиент для работы(синхронный)
+from telethon.tl.functions.messages import (
+    GetHistoryRequest,
+)  # Получение истории сообщений из чата
+from telethon.tl.types import Channel  # Тип, представляющий тг-канал
 from loggers import setup_logger, DEFAULT_TELEGRAM_LOG_FILE
 from storage import DataStorage
+from models import TelegramPostModel
 
-logger = setup_logger('telegram_logger', log_file=DEFAULT_TELEGRAM_LOG_FILE)
+logger = setup_logger("telegram_logger", log_file=DEFAULT_TELEGRAM_LOG_FILE)
 
 
 class TelegramChannelParser:
-    """Класс парсера telegram-канала"""
+    """
+    Класс для парсинга сообщений из Telegram-канала.
+    """
+
     def __init__(self, channel_name: str):
         """
         Инициализирует парсер канала Telegram.
-        Args: channel_username (str): Название канала
+        :param channel_name: Название канала
         """
 
         self._load_env_vars()         # Загрузка переменных окружения
@@ -23,29 +29,57 @@ class TelegramChannelParser:
 
         self.channel_name = channel_name
 
-        self.client = TelegramClient('session',
-                                     api_id=int(self.api_id),
-                                     api_hash=self.api_hash
-                                     )
+        self.client = TelegramClient(
+            "session", api_id=int(self.api_id), api_hash=self.api_hash
+        )
         self.channel = None  # Будет содержать объект канала после подключения
-        self.posts = []      # Здесь будут храниться полученные посты
+        self.posts: list[TelegramPostModel] = (
+            []
+        )  # Здесь будут храниться полученные посты
+        self.channel_url: str = ""  # Будет содержать ссылку на канал
+
+    @staticmethod
+    def replace_second_end_of_line(content: str) -> str:
+        """
+            Обрабатывает текст статьи, заменя двойные переносы строк на одинарные.
+
+            :param content: Исходный текст статьи с переносами строк
+            :return: Текст, где каждый абзац разделен одинарным переносом строки
+        """
+        paragraphs = content.strip().split("\n\n")
+        html_paragraphs = []
+        for p in paragraphs:
+            cleaned = p.replace("\n", " ")
+            html_paragraphs.append(f"{cleaned}")
+        return "\n".join(html_paragraphs)
 
     def _load_env_vars(self):
-        """Загрузка переменных окружения из .env файла"""
+        """
+        Загружает переменные окружения из .env файла или системной среды.
+        """
         if not load_dotenv():
-            logger.error("Файл .env не найден, пытаюсь использовать системные переменные окружения")
+            logger.error(
+                "Файл .env не найден, пытаюсь использовать системные переменные окружения"
+            )
 
-        self.api_id = os.getenv('TELEGRAM_API_ID')
-        self.api_hash = os.getenv('TELEGRAM_API_HASH')
+        self.api_id = os.getenv("TELEGRAM_API_ID")
+        self.api_hash = os.getenv("TELEGRAM_API_HASH")
 
     def _validate_credentials(self):
-        """Проверка наличия обязательных переменных"""
+        """
+        Проверяет наличие обязательных переменных окружения:
+        TELEGRAM_API_ID и TELEGRAM_API_HASH.
+
+        :raises ValueError: если одна или обе переменные отсутствуют
+        """
         required_vars = {
-            'TELEGRAM_API_ID': self.api_id,
-            'TELEGRAM_API_HASH': self.api_hash,
+            "TELEGRAM_API_ID": self.api_id,
+            "TELEGRAM_API_HASH": self.api_hash,
         }
 
-        missing_vars = [name for name, value in required_vars.items() if not value]
+        missing_vars = [
+            name for name, value in required_vars.items() if not value
+        ]
 
         if missing_vars:
             raise ValueError(
@@ -56,18 +90,29 @@ class TelegramChannelParser:
             )
 
     async def connect_to_channel(self):
-        """Подключение к каналу и получение информации о нем"""
+        """
+        Подключается к Telegram-каналу по имени и сохраняет его объект.
+
+        :raises TypeError: Если указанный объект не является каналом
+        """
         self.channel = await self.client.get_entity(self.channel_name)
 
         if not isinstance(self.channel, Channel):
-            logger.error('Нет канала с таким именем')
-            raise TypeError('Channel must be Channel')
+            logger.error("Нет канала с таким именем")
+            raise TypeError("Channel must be Channel")
 
-    async def get_posts(self, limit: int = 50, total_limit: int = 0):
+        if getattr(self.channel, "username", None):
+            self.channel_url = f"https://t.me/{self.channel.username}"
+        else:
+            # Приватный канал или приглашение
+            self.channel_url = f"https://t.me/c/{self.channel.id}"
+
+    async def get_posts_from_channel(self, limit: int = 100, total_limit: int = 0):
         """
-        Получение постов из канала
-        :param limit: Количество постов за один запрос (max 100)
-        :param total_limit: Общее ограничение количества постов (0 - без ограничений)
+        Получает список сообщений из канала.
+
+        :param limit: Количество сообщений за один запрос (максимум 100)
+        :param total_limit: Общее ограничение количества сообщений (0 — без ограничений)
         """
 
         if not self.channel:
@@ -77,16 +122,18 @@ class TelegramChannelParser:
         total_count_of_messages: int = 0
 
         while True:
-            history = await self.client(GetHistoryRequest(
-                peer=self.channel,
-                offset_id=offset_id,
-                offset_date=None,
-                add_offset=0,
-                limit=min(100, limit),
-                max_id=0,
-                min_id=0,
-                hash=0
-            ))
+            history = await self.client(
+                GetHistoryRequest(
+                    peer=self.channel,
+                    offset_id=offset_id,
+                    offset_date=None,
+                    add_offset=0,
+                    limit=min(100, limit),
+                    max_id=0,
+                    min_id=0,
+                    hash=0,
+                )
+            )
 
             if not history.messages:
                 logger.warning("Список сообщений пуст")
@@ -94,7 +141,11 @@ class TelegramChannelParser:
 
             messages = history.messages
             self._process_messages(messages)
-            logger.info("Загружено %d постов из телеграмм-канала %s", len(messages), self.channel_name)
+            logger.info(
+                "Загружено %d постов из телеграмм-канала %s",
+                len(messages),
+                self.channel_name,
+            )
             total_count_of_messages += len(messages)
             if 0 < total_limit <= total_count_of_messages:
                 break
@@ -105,37 +156,54 @@ class TelegramChannelParser:
             # Небольшая задержка чтобы не нагружать сервер
             await asyncio.sleep(0.5)
 
+
     def _process_messages(self, messages):
-        """Обработка и сохранение сообщений с улучшенным извлечением заголовков"""
+        """
+        Обрабатывает полученные сообщения и сохраняет их в список постов.
+
+        :param messages: Список сообщений Telegram
+        """
         for message in messages:
             # Безопасное получение текста
-            text = message.message or ""
+            content = message.message or ""
+            content = self.replace_second_end_of_line(content)
 
-            post_data = {
-                'id': message.id,
-                'date': message.date.isoformat(),
-                'text': text if text else "",  # Гарантируем строку вместо null
-                'views': getattr(message, 'views', None),
-                'media': bool(message.media),
-                'is_forward': bool(message.fwd_from)
-            }
-            self.posts.append(post_data)
+            post = TelegramPostModel(
+                id=message.id,
+                date=str(message.date.date()),
+                content=content,
+                views=getattr(message, "views", None),
+                media=bool(message.media),
+                is_forward=bool(message.fwd_from),
+                post_url=f"{self.channel_url}/{message.id}",
+            )
+            self.posts.append(post)
 
     def save_to_json(self):
-        """Сохранение в json"""
-        DataStorage.save_as_json(self.posts, 'telegram')
+        """
+        Сохраняет посты в файл формата JSON.
+        """
+        DataStorage.save_as_json(self.posts, "telegram", channel_url=self.channel_url)
 
-    async def run(self, post_limit: int = 500):
+    def get_posts(self) -> list[TelegramPostModel]:
+        """
+        Возвращает список постов
+
+        :return Список постов posts
+        """
+        return self.posts
+
+    async def run(self, post_limit: int = 0):
         """Основной метод для запуска парсера"""
         async with self.client:
             await self.connect_to_channel()
-            await self.get_posts(total_limit=post_limit)
+            await self.get_posts_from_channel(total_limit=post_limit)
             self.save_to_json()
 
 
 # Пример использования
 if __name__ == "__main__":
-    parser = TelegramChannelParser('DevFM')
+    parser = TelegramChannelParser("DevFM")
 
     # Запуск парсера с ограничением в 100 постов
     parser.client.loop.run_until_complete(parser.run(post_limit=100))
