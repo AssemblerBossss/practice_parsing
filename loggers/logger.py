@@ -10,14 +10,12 @@ def setup_logger(logger_name: str,
     """
     Настраивает и возвращает логгер с файловым и консольным выводом.
 
-    Args:
-        logger_name: Имя логгера (обычно __name__)
-        log_file: Имя файла лога (если None, используется DEFAULT_LOG_FILE)
-        log_level: Уровень логирования (если None, используется LOG_LEVEL из конфига)
-        console_output: Включить вывод в консоль
+    :param logger_name: Имя логгера (обычно __name__)
+    :param log_file: Имя файла лога (если None, используется DEFAULT_LOG_FILE)
+    :param log_level: Уровень логирования (если None, используется LOG_LEVEL из конфига)
+    :param console_output: Включить вывод в консоль
 
-    Returns:
-        Настроенный логгер
+    :return Настроенный логгер
     """
 
     # Создаем директорию для логов, если не существует
